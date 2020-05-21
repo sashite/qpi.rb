@@ -1,19 +1,27 @@
+# frozen_string_literal: true
+
 Gem::Specification.new do |spec|
-  spec.name          = 'sashite-gan'
-  spec.version       = File.read('VERSION.semver')
-  spec.authors       = ['Cyril Wack']
-  spec.email         = ['contact@cyril.io']
-  spec.summary       = %q{A GAN implementation in Ruby.}
-  spec.description   = %q{Implementation of GAN (General Actor Notation) for storing actors from abstract strategy games.}
-  spec.homepage      = 'https://github.com/sashite/gan.rb'
-  spec.license       = 'MIT'
+  spec.name         = 'sashite-gan'
+  spec.version      = File.read('VERSION.semver')
+  spec.author       = 'Cyril Kato'
+  spec.email        = 'contact@cyril.email'
+  spec.description  = 'Implementation of GAN (General Actor Notation) for storing actors from abstract strategy games.'
+  spec.summary      = 'A GAN implementation in Ruby.'
+  spec.homepage     = 'https://developer.sashite.com/specs/general-actor-notation'
+  spec.license      = 'MIT'
+  spec.files        = Dir['LICENSE.md', 'README.md', 'lib/**/*']
 
-  spec.files         = `git ls-files -z`.split("\x0")
-  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
-  spec.test_files    = spec.files.grep(%r{^test/})
-  spec.require_paths = ['lib']
+  spec.metadata = {
+    'bug_tracker_uri' => 'https://github.com/sashite/gan.rb/issues',
+    'documentation_uri' => 'https://rubydoc.info/gems/sashite-gan/index',
+    'source_code_uri' => 'https://github.com/sashite/gan.rb',
+    'wiki_uri' => 'https://github.com/sashite/gan.rb/wiki'
+  }
 
-  spec.add_development_dependency 'bundler',  '~> 1.6'
-  spec.add_development_dependency 'minitest', '~> 5'
-  spec.add_development_dependency 'rake',     '~> 10'
+  spec.add_development_dependency 'bundler'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'rubocop-performance'
+  spec.add_development_dependency 'rubocop-thread_safety'
+  spec.add_development_dependency 'simplecov'
+  spec.add_development_dependency 'yard'
 end

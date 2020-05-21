@@ -1,4 +1,4 @@
-Copyright (c) 2014 Cyril Wack
+Copyright (c) 2014-2020 Cyril Kato
 
 MIT License
 
