@@ -11,6 +11,8 @@ Gem::Specification.new do |spec|
   spec.license      = 'MIT'
   spec.files        = Dir['LICENSE.md', 'README.md', 'lib/**/*']
 
+  spec.required_ruby_version = '>= 2.3.0'
+
   spec.metadata = {
     'bug_tracker_uri' => 'https://github.com/sashite/gan.rb/issues',
     'documentation_uri' => 'https://rubydoc.info/gems/sashite-gan/index',
