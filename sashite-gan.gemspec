@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version      = File.read('VERSION.semver')
   spec.author       = 'Cyril Kato'
   spec.email        = 'contact@cyril.email'
-  spec.description  = 'Implementation of GAN (General Actor Notation) for storing actors from abstract strategy games.'
+  spec.description  = 'A Ruby interface for data serialization in GAN format ♟️'
   spec.summary      = 'A GAN implementation in Ruby.'
   spec.homepage     = 'https://developer.sashite.com/specs/general-actor-notation'
   spec.license      = 'MIT'
@@ -18,6 +18,7 @@ Gem::Specification.new do |spec|
     'wiki_uri' => 'https://github.com/sashite/gan.rb/wiki'
   }
 
+  spec.add_development_dependency 'brutal'
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rake'
   spec.add_development_dependency 'rubocop-performance'

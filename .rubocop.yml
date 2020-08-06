@@ -4,6 +4,10 @@ require:
   - rubocop-performance
   - rubocop-thread_safety
 
+AllCops:
+  Exclude:
+    - test.rb
+
 Style/HashEachMethods:
   Enabled: true
 

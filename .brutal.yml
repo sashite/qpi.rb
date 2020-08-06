@@ -1,0 +1,46 @@
+---
+header: |
+  # frozen_string_literal: false
+
+  require 'simplecov'
+
+  ::SimpleCov.command_name 'Brutal test suite'
+  ::SimpleCov.start
+
+  require './lib/sashite-gan'
+
+subject: |
+  Sashite::GAN.parse("%{string}")
+
+contexts:
+  string:
+    - C:R
+    - c:-k
+    - M:B
+    - s:-k
+    - S:-K
+    - S:+P
+    - X:-G
+    - X:+-G
+    - DAI_DAI_SHOGI:PH
+    - FOO:+Z
+
+actuals:
+  - "%{subject}.inspect.to_s"
+  - "%{subject}.class.inspect"
+  - "%{subject}.abbr.inspect.to_s"
+  - "%{subject}.abbr.to_s"
+  - "%{subject}.style"
+  - "%{subject}.topside?"
+  - "%{subject}.bottomside?"
+  - "%{subject}.to_s"
+  - "%{subject}.topside.to_s"
+  - "%{subject}.topside.class.inspect"
+  - "%{subject}.bottomside.to_s"
+  - "%{subject}.bottomside.class.inspect"
+  - "%{subject}.oppositeside.to_s"
+  - "%{subject}.oppositeside.class.inspect"
+  - "%{subject}.promote.to_s"
+  - "%{subject}.promote.class.inspect"
+  - "%{subject}.unpromote.to_s"
+  - "%{subject}.unpromote.class.inspect"

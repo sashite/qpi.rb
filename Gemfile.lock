@@ -1,12 +1,13 @@
 PATH
   remote: .
   specs:
-    sashite-gan (1.0.0)
+    sashite-gan (2.0.0)
 
 GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.0)
+    brutal (1.1.0)
     docile (1.3.2)
     parallel (1.19.1)
     parser (2.7.1.2)
@@ -40,6 +41,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  brutal
   bundler
   rake
   rubocop-performance

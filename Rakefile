@@ -21,3 +21,5 @@ end
 
 task(:doc_stats) { ruby '-S yard stats' }
 task default: %i[test doc_stats rubocop]
+
+Dir.glob(File.join('tasks', '**', '*.rake')).each { |r| import(r) }

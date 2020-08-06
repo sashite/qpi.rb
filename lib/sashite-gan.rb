@@ -1,3 +1,6 @@
 # frozen_string_literal: true
 
-require 'sashite/gan'
+# Sashite namespace
+module Sashite; end
+
+require_relative 'sashite/gan'
