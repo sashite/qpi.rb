@@ -98,6 +98,14 @@ module Sashite
         )
       end
 
+      def ==(other)
+        other.to_s == to_s
+      end
+
+      def eql?(other)
+        self == other
+      end
+
       private
 
       # @return [String] The style and the abbreviation of the piece (without

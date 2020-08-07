@@ -26,8 +26,16 @@ contexts:
     - FOO:+Z
 
 actuals:
+  - "(%{subject} == \"C:R\")"
+  - "%{subject}.eql?(\"C:R\")"
+  - "(%{subject} == Sashite::GAN.parse(\"C:R\"))"
+  - "%{subject}.eql?(Sashite::GAN.parse(\"C:R\"))"
   - "%{subject}.inspect.to_s"
   - "%{subject}.class.inspect"
+  - "(%{subject}.abbr == \"R\")"
+  - "%{subject}.abbr.eql?(\"R\")"
+  - "(%{subject}.abbr == Sashite::GAN.parse(\"C:R\").abbr)"
+  - "%{subject}.abbr.eql?(Sashite::GAN.parse(\"C:R\").abbr)"
   - "%{subject}.abbr.inspect.to_s"
   - "%{subject}.abbr.to_s"
   - "%{subject}.style"

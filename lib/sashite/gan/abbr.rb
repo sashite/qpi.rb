@@ -40,6 +40,14 @@ module Sashite
         to_s
       end
 
+      def ==(other)
+        other.to_s == to_s
+      end
+
+      def eql?(other)
+        self == other
+      end
+
       private
 
       # rubocop:disable Naming/MethodName

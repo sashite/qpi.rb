@@ -13,8 +13,16 @@ actual = begin
   Sashite::GAN.parse("C:R")
 end
 
+raise if (actual == "C:R") != true
+raise if actual.eql?("C:R") != true
+raise if (actual == Sashite::GAN.parse("C:R")) != true
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != true
 raise if actual.inspect.to_s != "C:R"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != true
+raise if actual.abbr.eql?("R") != true
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != true
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != true
 raise if actual.abbr.inspect.to_s != "R"
 raise if actual.abbr.to_s != "R"
 raise if actual.style != "C"
@@ -38,8 +46,16 @@ actual = begin
   Sashite::GAN.parse("c:-k")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "c:-k"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "-k"
 raise if actual.abbr.to_s != "-k"
 raise if actual.style != "c"
@@ -63,8 +79,16 @@ actual = begin
   Sashite::GAN.parse("M:B")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "M:B"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "B"
 raise if actual.abbr.to_s != "B"
 raise if actual.style != "M"
@@ -88,8 +112,16 @@ actual = begin
   Sashite::GAN.parse("s:-k")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "s:-k"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "-k"
 raise if actual.abbr.to_s != "-k"
 raise if actual.style != "s"
@@ -113,8 +145,16 @@ actual = begin
   Sashite::GAN.parse("S:-K")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "S:-K"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "-K"
 raise if actual.abbr.to_s != "-K"
 raise if actual.style != "S"
@@ -138,8 +178,16 @@ actual = begin
   Sashite::GAN.parse("S:+P")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "S:+P"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "+P"
 raise if actual.abbr.to_s != "+P"
 raise if actual.style != "S"
@@ -163,8 +211,16 @@ actual = begin
   Sashite::GAN.parse("X:-G")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "X:-G"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "-G"
 raise if actual.abbr.to_s != "-G"
 raise if actual.style != "X"
@@ -188,8 +244,16 @@ actual = begin
   Sashite::GAN.parse("X:+-G")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "X:+-G"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "+-G"
 raise if actual.abbr.to_s != "+-G"
 raise if actual.style != "X"
@@ -213,8 +277,16 @@ actual = begin
   Sashite::GAN.parse("DAI_DAI_SHOGI:PH")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "DAI_DAI_SHOGI:PH"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "PH"
 raise if actual.abbr.to_s != "PH"
 raise if actual.style != "DAI_DAI_SHOGI"
@@ -238,8 +310,16 @@ actual = begin
   Sashite::GAN.parse("FOO:+Z")
 end
 
+raise if (actual == "C:R") != false
+raise if actual.eql?("C:R") != false
+raise if (actual == Sashite::GAN.parse("C:R")) != false
+raise if actual.eql?(Sashite::GAN.parse("C:R")) != false
 raise if actual.inspect.to_s != "FOO:+Z"
 raise if actual.class.inspect != "Sashite::GAN::Piece"
+raise if (actual.abbr == "R") != false
+raise if actual.abbr.eql?("R") != false
+raise if (actual.abbr == Sashite::GAN.parse("C:R").abbr) != false
+raise if actual.abbr.eql?(Sashite::GAN.parse("C:R").abbr) != false
 raise if actual.abbr.inspect.to_s != "+Z"
 raise if actual.abbr.to_s != "+Z"
 raise if actual.style != "FOO"
