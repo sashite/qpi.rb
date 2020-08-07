@@ -32,6 +32,10 @@ module Sashite
         freeze
       end
 
+      def king?
+        abbr.king?
+      end
+
       # Is it owned by top-side player?
       #
       # @return [Boolean] Returns `true` if the top-side player own the piece,

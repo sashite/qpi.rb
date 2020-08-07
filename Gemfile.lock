@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sashite-gan (2.1.0)
+    sashite-gan (2.2.0)
 
 GEM
   remote: https://rubygems.org/

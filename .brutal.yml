@@ -39,6 +39,7 @@ actuals:
   - "%{subject}.abbr.inspect.to_s"
   - "%{subject}.abbr.to_s"
   - "%{subject}.style"
+  - "%{subject}.king?"
   - "%{subject}.topside?"
   - "%{subject}.bottomside?"
   - "%{subject}.to_s"
