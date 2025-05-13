@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     sashite-gan (3.0.0)
-      pnn (~> 1.0)
+      pnn (~> 1.1.0)
 
 GEM
   remote: https://rubygems.org/
