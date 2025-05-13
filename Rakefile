@@ -1,25 +1,32 @@
 # frozen_string_literal: true
 
-require 'bundler/gem_tasks'
-require 'rake/testtask'
-require 'rubocop/rake_task'
-
-RuboCop::RakeTask.new
+require "bundler/gem_tasks"
+require "rake/testtask"
+require "rubocop/rake_task"
+require "yard"
 
 Rake::TestTask.new do |t|
-  t.pattern = 'test.rb'
+  t.libs << "test"
+  t.pattern = "test/**/test_*.rb"
+  t.warning = false
   t.verbose = true
-  t.warning = true
 end
 
-namespace :test do
-  task :coverage do
-    ENV['COVERAGE'] = 'true'
-    Rake::Task['test'].invoke
-  end
+RuboCop::RakeTask.new do |task|
+  task.requires << "rubocop-gitlab-security"
+  task.requires << "rubocop-md"
+  task.requires << "rubocop-performance"
+  task.requires << "rubocop-rake"
+  task.requires << "rubocop-thread_safety"
 end
 
-task(:doc_stats) { ruby '-S yard stats' }
-task default: %i[test doc_stats]
+YARD::Rake::YardocTask.new
 
-Dir.glob(File.join('tasks', '**', '*.rake')).each { |r| import(r) }
+Dir["tasks/**/*.rake"].each { |t| load t }
+
+task default: %i[
+  generate_rubocop_yaml
+  yard
+  test
+  rubocop:autocorrect
+]

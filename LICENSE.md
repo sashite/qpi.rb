@@ -1,4 +1,4 @@
-Copyright (c) 2014-2020 Sashite
+Copyright (c) 2014-2025 Sashite
 
 MIT License
 
