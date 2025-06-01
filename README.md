@@ -56,7 +56,7 @@ The casing of the game identifier reflects the player:
 Convert a GAN string into a structured Ruby hash:
 
 ```ruby
-require "sashite-gan"
+require "sashite/gan"
 
 # Basic actor
 result = Sashite::Gan.parse("CHESS:K")
@@ -80,7 +80,7 @@ result = Sashite::Gan.parse("SHOGI:+R'")
 Parse a GAN string without raising exceptions:
 
 ```ruby
-require "sashite-gan"
+require "sashite/gan"
 
 # Valid GAN string
 result = Sashite::Gan.safe_parse("CHESS:K'")
@@ -96,7 +96,7 @@ result = Sashite::Gan.safe_parse("invalid gan string")
 Convert actor components into a GAN string:
 
 ```ruby
-require "sashite-gan"
+require "sashite/gan"
 
 # Basic actor
 Sashite::Gan.dump(game_id: "CHESS", letter: "K")
@@ -120,7 +120,7 @@ Sashite::Gan.dump(game_id: "SHOGI", letter: "R", prefix: "+", suffix: "'")
 Check if a string is valid GAN notation:
 
 ```ruby
-require "sashite-gan"
+require "sashite/gan"
 
 Sashite::Gan.valid?("CHESS:K")      # => true
 Sashite::Gan.valid?("SHOGI:+P")     # => true
