@@ -14,11 +14,15 @@ AllCops:
   
     - .yardoc/
   
+    - coverage/
+  
     - doc/
   
     - lib/.DS_Store
   
     - lib/sashite/.DS_Store
+  
+    - pkg/
   
     - test.rb
     - config/**/*
