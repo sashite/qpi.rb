@@ -1,12 +1,4 @@
-# Group by various attributes
-by_style = actors.group_by(&:name)
-by_side = actors.group_by(&:side)
-by_type = actors.group_by(&:type)
-
-# Filter operations
-first_player_actors = actors.select(&:first_player?)
-chess_actors = actors.select { |a| a.name == :Chess }
-kings = actors.select { |a| a.type == :K }# Gan.rb
+# Gan.rb
 
 [![Version](https://img.shields.io/github/v/tag/sashite/gan.rb?label=Version&logo=github)](https://github.com/sashite/gan.rb/tags)
 [![Yard documentation](https://img.shields.io/badge/Yard-documentation-blue.svg?logo=github)](https://rubydoc.info/github/sashite/gan.rb/main)
@@ -64,13 +56,13 @@ Sashite::Gan.valid?("Chess:K")                 # => false (mixed case)
 Sashite::Gan.valid?("CHESS")                   # => false (missing piece)
 
 # State manipulation (returns new immutable instances)
-enhanced = actor.enhance                       # => #<Gan::Actor style="CHESS" piece="+K">
+enhanced = actor.enhance                       # => #<Gan::Actor name=:Chess type=:K side=:first state=:enhanced>
 enhanced.to_s                                  # => "CHESS:+K"
-diminished = actor.diminish                    # => #<Gan::Actor style="CHESS" piece="-K">
+diminished = actor.diminish                    # => #<Gan::Actor name=:Chess type=:K side=:first state=:diminished>
 diminished.to_s                                # => "CHESS:-K"
 
 # Side manipulation
-flipped = actor.flip                           # => #<Gan::Actor style="chess" piece="k">
+flipped = actor.flip                           # => #<Gan::Actor name=:Chess type=:K side=:second state=:normal>
 flipped.to_s                                   # => "chess:k"
 
 # Style manipulation
@@ -78,7 +70,7 @@ shogi_actor = actor.with_name(:Shogi)          # => #<Gan::Actor name=:Shogi typ
 shogi_actor.to_s                               # => "SHOGI:K"
 
 # Type manipulation
-queen = actor.with_type(:Q)                    # => #<Gan::Actor style="CHESS" piece="Q">
+queen = actor.with_type(:Q)                    # => #<Gan::Actor name=:Chess type=:Q side=:first state=:normal>
 queen.to_s                                     # => "CHESS:Q"
 
 # State queries
@@ -141,7 +133,8 @@ Sashite::Gan.valid?("SHOGI:+r")    # => false (case mismatch)
 
 ### Regular Expression
 ```ruby
-/\A([A-Z][A-Z0-9]*|[a-z][a-z0-9]*):[-+]?[A-Za-z]\z/
+# GAN validation is delegated to SNN and PIN components
+# Format: <snn>:<pin> where each component validates independently
 ```
 
 ### Examples
@@ -219,7 +212,7 @@ end
 # Cross-style capture (style transformation)
 def cross_style_capture(captured_piece, capturing_style)
   # Captured piece transforms to capturing player's style
-  captured_piece.flip.with_style(capturing_style).normalize
+  captured_piece.flip.with_name(capturing_style).normalize
   # chess:q captured by Ōgi player becomes OGI:P
 end
 ```
@@ -295,7 +288,7 @@ actor2.to_s        # => "chess:k" (lowercase display)
 - `#==(other)` - Full equality comparison
 
 ### Constants
-- `Sashite::Gan::GAN_REGEX` - Regular expression for GAN validation
+- `Sashite::Gan::SEPARATOR` - Colon separator character
 
 ## Advanced Usage
 
@@ -304,7 +297,7 @@ actor2.to_s        # => "chess:k" (lowercase display)
 # All transformations return new instances
 original = Sashite::Gan.parse("CHESS:P")
 enhanced = original.enhance
-cross_style = original.with_style(:Shogi)
+cross_style = original.with_name(:Shogi)
 enemy = original.flip
 
 # Original actor is never modified
@@ -314,7 +307,7 @@ puts cross_style.to_s  # => "SHOGI:P"
 puts enemy.to_s        # => "chess:p"
 
 # Transformations can be chained
-result = original.flip.with_style(:Xiangqi).enhance
+result = original.flip.with_name(:Xiangqi).enhance
 puts result.to_s       # => "xiangqi:+p"
 ```
 
@@ -408,7 +401,7 @@ end
 ```ruby
 # Create higher-order transformation functions
 def create_capturer(target_style)
-  ->(actor) { actor.flip.with_style(target_style).normalize }
+  ->(actor) { actor.flip.with_name(target_style).normalize }
 end
 
 def create_promoter(condition)
@@ -446,14 +439,14 @@ actors = [
 ]
 
 # Group by various attributes
-by_style = actors.group_by { |a| a.style.name }
+by_style = actors.group_by(&:name)
 by_side = actors.group_by(&:side)
-by_type = actors.group_by { |a| a.piece.type }
+by_type = actors.group_by(&:type)
 
 # Filter operations
 first_player_actors = actors.select(&:first_player?)
-chess_actors = actors.select { |a| a.style.name == :Chess }
-kings = actors.select { |a| a.piece.type == :K }
+chess_actors = actors.select { |a| a.name == :Chess }
+kings = actors.select { |a| a.type == :K }
 
 # Transform collections immutably
 enhanced_actors = actors.map(&:enhance)
@@ -479,8 +472,6 @@ def analyze_actor(actor)
     "Black Xiangqi piece"
   else
     "Other piece: #{actor.to_s}"
-  end
-endactor.to_s}"
   end
 end
 
@@ -557,22 +548,49 @@ GAN is particularly useful for:
 
 This gem depends on:
 
-- [sashite-snn](https://github.com/sashite/snn.rb) (~> 1.0.0) - Style Name Notation implementation
-- [sashite-pin](https://github.com/sashite/pin.rb) (~> 1.1.0) - Piece Identifier Notation implementation
+- [sashite-snn](https://github.com/sashite/snn.rb) - Style Name Notation implementation
+- [sashite-pin](https://github.com/sashite/pin.rb) - Piece Identifier Notation implementation
 
-## Specification
+## Related Specifications
 
 - [GAN Specification v1.0.0](https://sashite.dev/specs/gan/1.0.0/)
 - [GAN Examples](https://sashite.dev/specs/gan/1.0.0/examples/)
 - [SNN Specification v1.0.0](https://sashite.dev/specs/snn/1.0.0/)
 - [PIN Specification v1.0.0](https://sashite.dev/specs/pin/1.0.0/)
+- [Game Protocol Foundation](https://sashite.dev/game-protocol/)
 
 ## Documentation
 
-- [GAN Documentation](https://rubydoc.info/github/sashite/gan.rb/main)
+- [API Documentation](https://rubydoc.info/github/sashite/gan.rb/main)
 - [SNN Documentation](https://rubydoc.info/github/sashite/snn.rb/main)
 - [PIN Documentation](https://rubydoc.info/github/sashite/pin.rb/main)
-- [Game Protocol Foundation](https://sashite.dev/game-protocol/)
+
+## Development
+
+```sh
+# Clone the repository
+git clone https://github.com/sashite/gan.rb.git
+cd gan.rb
+
+# Install dependencies
+bundle install
+
+# Run tests
+ruby test.rb
+
+# Generate documentation
+yard doc
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Add tests for your changes
+4. Ensure all tests pass (`ruby test.rb`)
+5. Commit your changes (`git commit -am 'Add new feature'`)
+6. Push to the branch (`git push origin feature/new-feature`)
+7. Create a Pull Request
 
 ## License
 

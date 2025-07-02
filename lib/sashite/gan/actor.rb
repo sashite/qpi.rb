@@ -21,7 +21,7 @@ module Sashite
     # This follows the Game Protocol's actor model with complete attribute representation.
     class Actor
       # Colon separator character
-      COLON_CHAR = ":"
+      SEPARATOR = ":"
 
       # Player side constants
       FIRST_PLAYER = :first
@@ -84,10 +84,10 @@ module Sashite
         string_value = String(gan_string)
 
         # Split into SNN and PIN components
-        snn_part, pin_part = string_value.split(COLON_CHAR, 2)
+        snn_part, pin_part = string_value.split(SEPARATOR, 2)
 
         # Validate basic format
-        unless snn_part && pin_part && string_value.count(COLON_CHAR) == 1
+        unless snn_part && pin_part && string_value.count(SEPARATOR) == 1
           raise ::ArgumentError, format(ERROR_INVALID_GAN, string_value)
         end
 
@@ -110,7 +110,7 @@ module Sashite
       #   actor.to_s  # => "shogi:+p"
       #   actor.to_s  # => "XIANGQI:-G"
       def to_s
-        "#{style}#{COLON_CHAR}#{piece}"
+        "#{style}#{SEPARATOR}#{piece}"
       end
 
       # Get the style name
