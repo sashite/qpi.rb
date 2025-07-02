@@ -18,8 +18,8 @@ Gem::Specification.new do |spec|
   spec.files       = ::Dir["LICENSE.md", "README.md", "lib/**/*"]
   spec.required_ruby_version = ">= 3.2.0"
 
-  spec.add_dependency "sashite-pin", "~> 2.0.1"
-  spec.add_dependency "sashite-snn", "~> 1.1.0"
+  spec.add_dependency "sashite-pin", "~> 2.0.2"
+  spec.add_dependency "sashite-snn", "~> 1.1.1"
 
   spec.metadata = {
     "bug_tracker_uri"       => "https://github.com/sashite/gan.rb/issues",

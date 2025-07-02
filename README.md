@@ -50,7 +50,7 @@ actor.to_snn                                   # => "CHESS"
 actor.to_pin                                   # => "K"
 
 # Create actors directly
-actor = Sashite::Gan.actor(:Chess, :K, :first, :normal)        # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
+actor = Sashite::Gan.actor(:Chess, :K, :first, :normal) # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
 actor = Sashite::Gan::Actor.new(:Shogi, :P, :second, :enhanced) # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
 
 # Validate GAN strings
@@ -58,6 +58,12 @@ Sashite::Gan.valid?("CHESS:K")                 # => true
 Sashite::Gan.valid?("shogi:+p")                # => true
 Sashite::Gan.valid?("Chess:K")                 # => false (mixed case)
 Sashite::Gan.valid?("CHESS")                   # => false (missing piece)
+
+# Class-level validation (same as module method)
+Sashite::Gan::Actor.valid?("CHESS:K")          # => true
+Sashite::Gan::Actor.valid?("chess:k")          # => true
+Sashite::Gan::Actor.valid?("Chess:K")          # => false (mixed case)
+Sashite::Gan::Actor.valid?("CHESS:k")          # => false (case mismatch)
 
 # State manipulation (returns new immutable instances)
 enhanced = actor.enhance                       # => #<Gan::Actor name=:Chess type=:K side=:first state=:enhanced>
@@ -143,11 +149,14 @@ Sashite::Gan.valid?("chess:K")     # => false (case mismatch)
 Sashite::Gan.valid?("SHOGI:+r")    # => false (case mismatch)
 ```
 
-### Regular Expression
-```ruby
-# GAN validation is delegated to SNN and PIN components
-# Format: <snn>:<pin> where each component validates independently
-```
+### Validation Architecture
+
+GAN validation delegates to the underlying components for maximum consistency:
+- **SNN validation**: Uses `Sashite::Snn::Style::SNN_PATTERN` for style validation
+- **PIN validation**: Uses `Sashite::Pin::Piece::PIN_PATTERN` for piece validation
+- **Case consistency**: Ensures matching case between SNN and PIN components
+
+This modular approach avoids code duplication and ensures that GAN validation automatically inherits improvements from the underlying SNN and PIN libraries.
 
 ### Examples
 - `CHESS:K` - First player chess king
@@ -175,7 +184,7 @@ sente_gold = Sashite::Gan.parse("SHOGI:G")
 gote_gold = Sashite::Gan.parse("shogi:g")
 
 # Enhanced states for special conditions
-castling_rook = Sashite::Gan.parse("CHESS:+R")    # Castling-eligible rook
+castling_rook = Sashite::Gan.parse("CHESS:+R") # Castling-eligible rook
 vulnerable_pawn = Sashite::Gan.parse("CHESS:-P")   # En passant vulnerable pawn
 promoted_pawn = Sashite::Gan.parse("SHOGI:+P")     # Tokin (promoted pawn)
 ```
@@ -190,8 +199,8 @@ chess_king = Sashite::Gan.parse("CHESS:K")
 shogi_king = Sashite::Gan.parse("shogi:k")
 
 # Makruk vs Xiangqi
-makruk_queen = Sashite::Gan.parse("MAKRUK:M")      # Met (Makruk queen)
-xiangqi_general = Sashite::Gan.parse("xiangqi:g")   # Xiangqi general
+makruk_queen = Sashite::Gan.parse("MAKRUK:M") # Met (Makruk queen)
+xiangqi_general = Sashite::Gan.parse("xiangqi:g") # Xiangqi general
 
 # Multi-tradition setup
 def create_cross_style_game
@@ -212,13 +221,13 @@ GAN can represent the different capture mechanics described in the specification
 # Chess vs Chess (traditional capture)
 def chess_capture(captured_piece)
   # In chess, captured pieces retain their identity but become inactive
-  captured_piece  # GAN remains unchanged: chess:p stays chess:p
+  captured_piece # GAN remains unchanged: chess:p stays chess:p
 end
 
 # Shōgi vs Shōgi (side-changing capture)
 def shogi_capture(captured_piece)
   # In shōgi, captured pieces change sides and lose promotions
-  captured_piece.flip.normalize  # shogi:+p becomes SHOGI:P
+  captured_piece.flip.normalize # shogi:+p becomes SHOGI:P
 end
 
 # Cross-style capture (style transformation)
@@ -242,6 +251,7 @@ end
 #### Creation and Parsing
 - `Sashite::Gan::Actor.new(name, type, side, state = :normal)` - Create actor instance
 - `Sashite::Gan::Actor.parse(gan_string)` - Parse GAN string (same as module method)
+- `Sashite::Gan::Actor.valid?(gan_string)` - Validate GAN string (class method)
 
 #### Attribute Access
 - `#name` - Get style name (symbol with proper capitalization)
@@ -260,7 +270,7 @@ The `to_pin` and `to_snn` methods allow extraction of individual notation compon
 actor = Sashite::Gan.parse("CHESS:+K")
 
 # Full GAN representation
-actor.to_s        # => "CHESS:+K"
+actor.to_s # => "CHESS:+K"
 
 # Individual components
 actor.to_snn      # => "CHESS" (style component)
@@ -333,13 +343,13 @@ actor2.to_pin      # => "k" (lowercase piece)
 - `#==(other)` - Full equality comparison
 
 ### Constants
-- `Sashite::Gan::SEPARATOR` - Colon separator character
+- `Sashite::Gan::Actor::SEPARATOR` - Colon separator character
 
 ## Advanced Usage
 
 ### Component Extraction and Manipulation
 
-The new `to_pin` and `to_snn` methods enable powerful component-based operations:
+The `to_pin` and `to_snn` methods enable powerful component-based operations:
 
 ```ruby
 # Extract and manipulate components
@@ -350,7 +360,7 @@ style_str = actor.to_snn    # => "SHOGI"
 piece_str = actor.to_pin    # => "+P"
 
 # Reconstruct from components
-reconstructed = "#{style_str}:#{piece_str}"  # => "SHOGI:+P"
+reconstructed = "#{style_str}:#{piece_str}" # => "SHOGI:+P"
 
 # Cross-component analysis
 actors = [
@@ -420,20 +430,20 @@ cross_style = original.with_name(:Shogi)
 enemy = original.flip
 
 # Original actor is never modified
-puts original.to_s     # => "CHESS:P"
-puts enhanced.to_s     # => "CHESS:+P"
-puts cross_style.to_s  # => "SHOGI:P"
-puts enemy.to_s        # => "chess:p"
+puts original     # => "CHESS:P"
+puts enhanced     # => "CHESS:+P"
+puts cross_style  # => "SHOGI:P"
+puts enemy        # => "chess:p"
 
 # Component extraction shows changes
-puts enhanced.to_pin   # => "+P" (state changed)
+puts enhanced.to_pin # => "+P" (state changed)
 puts cross_style.to_snn # => "SHOGI" (style changed)
 puts enemy.to_snn      # => "chess" (case changed)
 puts enemy.to_pin      # => "p" (case changed)
 
 # Transformations can be chained
 result = original.flip.with_name(:Xiangqi).enhance
-puts result.to_s       # => "xiangqi:+p"
+puts result # => "xiangqi:+p"
 puts result.to_snn     # => "xiangqi"
 puts result.to_pin     # => "+p"
 ```
@@ -460,11 +470,11 @@ class CrossStyleGame
     return true if @style_assignments.size < 2
 
     sides = @style_assignments.values.map { |a| a[:side] }
-    sides.uniq.size == 2  # Must have different sides
+    sides.uniq.size == 2 # Must have different sides
   end
 
   def get_player_style_string(player)
-    actor = create_actor(player, :K)  # Use king as reference
+    actor = create_actor(player, :K) # Use king as reference
     actor.to_snn
   end
 end
@@ -477,92 +487,48 @@ game.assign_style(:black, :Shogi)
 white_king = game.create_actor(:white, :K)
 black_king = game.create_actor(:black, :K)
 
-puts white_king.to_s              # => "CHESS:K"
-puts white_king.to_snn            # => "CHESS"
-puts black_king.to_s              # => "shogi:k"
-puts black_king.to_snn            # => "shogi"
-puts game.valid_combination?       # => true
+puts white_king # => "CHESS:K"
+puts white_king.to_snn # => "CHESS"
+puts black_king # => "shogi:k"
+puts black_king.to_snn # => "shogi"
+puts game.valid_combination? # => true
 ```
 
-### Style Collision Resolution
+### Validation and Error Handling
 ```ruby
-# GAN resolves naming conflicts between different styles
-def demonstrate_collision_resolution
-  pieces = [
-    Sashite::Gan.parse("CHESS:R"),    # Chess rook
-    Sashite::Gan.parse("SHOGI:R"),    # Shōgi rook
-    Sashite::Gan.parse("MAKRUK:R"),   # Makruk rook
-    Sashite::Gan.parse("xiangqi:r")   # Xiangqi chariot
-  ]
+# Comprehensive validation with both module and class methods
+def safe_parse(gan_string)
+  # You can use either method for validation
+  return nil unless Sashite::Gan.valid?(gan_string)
 
-  # All can coexist without ambiguity
-  pieces.each do |piece|
-    puts "#{piece.name} #{piece.type}: #{piece.to_s} (style: #{piece.to_snn}, piece: #{piece.to_pin})"
-  end
-  # => Chess R: CHESS:R (style: CHESS, piece: R)
-  # => Shogi R: SHOGI:R (style: SHOGI, piece: R)
-  # => Makruk R: MAKRUK:R (style: MAKRUK, piece: R)
-  # => Xiangqi R: xiangqi:r (style: xiangqi, piece: r)
+  # Alternative: return nil unless Sashite::Gan::Actor.valid?(gan_string)
 
-  # Group by style for analysis
-  by_style = pieces.group_by(&:to_snn)
-  by_style.each { |style, actors| puts "#{style}: #{actors.size} pieces" }
-end
-```
-
-### Capture Simulation
-```ruby
-def simulate_captures
-  # Traditional chess capture (identity preserved)
-  black_pawn = Sashite::Gan.parse("chess:p")
-  puts "Before capture: #{black_pawn.to_s} (style: #{black_pawn.to_snn}, piece: #{black_pawn.to_pin})"
-  # In chess, piece goes to reserve but retains identity
-  puts "After capture: #{black_pawn.to_s} (style: #{black_pawn.to_snn}, piece: #{black_pawn.to_pin})"
-
-  # Shōgi capture (side changes, promotion lost)
-  promoted_pawn = Sashite::Gan.parse("shogi:+p")
-  puts "Before capture: #{promoted_pawn.to_s} (style: #{promoted_pawn.to_snn}, piece: #{promoted_pawn.to_pin})"
-  captured = promoted_pawn.flip.normalize
-  puts "After capture: #{captured.to_s} (style: #{captured.to_snn}, piece: #{captured.to_pin})"
-
-  # Cross-style capture (complete transformation)
-  chess_queen = Sashite::Gan.parse("chess:q")
-  puts "Before capture: #{chess_queen.to_s} (style: #{chess_queen.to_snn}, piece: #{chess_queen.to_pin})"
-  transformed = chess_queen.flip.with_name(:Ogi).with_type(:P).normalize
-  puts "After capture: #{transformed.to_s} (style: #{transformed.to_snn}, piece: #{transformed.to_pin})"
-end
-```
-
-### Functional Composition
-```ruby
-# Create higher-order transformation functions
-def create_capturer(target_style)
-  ->(actor) { actor.flip.with_name(target_style).normalize }
+  Sashite::Gan.parse(gan_string)
+rescue ArgumentError => e
+  puts "Parse error: #{e.message}"
+  nil
 end
 
-def create_promoter(condition)
-  ->(actor) { condition.call(actor) ? actor.enhance : actor }
+# Batch validation with component extraction
+gan_strings = ["CHESS:K", "Chess:K", "SHOGI:+p", "invalid"]
+valid_actors = gan_strings.filter_map { |s| safe_parse(s) }
+
+puts "Valid actors with components:"
+valid_actors.each do |actor|
+  puts "  #{actor} -> style: #{actor.to_snn}, piece: #{actor.to_pin}"
 end
 
-# Compose transformations
-chess_capturer = create_capturer(:Chess)
-pawn_promoter = create_promoter(->(actor) { actor.type == :P })
+# Module-level validation
+Sashite::Gan.valid?("CHESS:K")           # => true
+Sashite::Gan.valid?("chess:k")           # => true
+Sashite::Gan.valid?("Chess:K")           # => false (mixed case)
+Sashite::Gan.valid?("CHESS")             # => false (missing piece)
 
-# Apply transformations functionally
-enemy_pawn = Sashite::Gan.parse("shogi:p")
-captured_and_promoted = pawn_promoter.call(chess_capturer.call(enemy_pawn))
-
-puts "Original: #{enemy_pawn.to_s} (#{enemy_pawn.to_snn}:#{enemy_pawn.to_pin})"
-puts "Result: #{captured_and_promoted.to_s} (#{captured_and_promoted.to_snn}:#{captured_and_promoted.to_pin})"
-
-# Pipeline composition
-def compose(*functions)
-  ->(value) { functions.reduce(value) { |acc, func| func.call(acc) } }
-end
-
-transformation = compose(chess_capturer, pawn_promoter)
-result = transformation.call(enemy_pawn)
-puts "Composed result: #{result.to_s} (#{result.to_snn}:#{result.to_pin})"
+# Class-level validation (equivalent to module method)
+Sashite::Gan::Actor.valid?("CHESS:K")    # => true
+Sashite::Gan::Actor.valid?("chess:k")    # => true
+Sashite::Gan::Actor.valid?("Chess:K")    # => false (mixed case)
+Sashite::Gan::Actor.valid?("CHESS:k")    # => false (case mismatch)
 ```
 
 ### Collection Operations
@@ -600,10 +566,10 @@ enemy_actors = actors.map(&:flip)
 
 # Show component changes
 puts "Enhanced actors:"
-enhanced_actors.each { |a| puts "  #{a.to_s} (pin: #{a.to_pin})" }
+enhanced_actors.each { |a| puts "  #{a} (pin: #{a.to_pin})" }
 
 puts "Enemy actors:"
-enemy_actors.each { |a| puts "  #{a.to_s} (snn: #{a.to_snn}, pin: #{a.to_pin})" }
+enemy_actors.each { |a| puts "  #{a} (snn: #{a.to_snn}, pin: #{a.to_pin})" }
 
 # Complex queries
 cross_style_pairs = actors.combination(2).select do |a1, a2|
@@ -611,54 +577,6 @@ cross_style_pairs = actors.combination(2).select do |a1, a2|
 end
 
 puts "Cross-style pairs: #{cross_style_pairs.size}"
-```
-
-### Pattern Matching (Ruby 3.0+)
-```ruby
-def analyze_actor(actor)
-  case actor
-  in Sashite::Gan::Actor[name: :Chess, type: :K, side: :first]
-    "White Chess King (#{actor.to_snn}:#{actor.to_pin})"
-  in Sashite::Gan::Actor[name: :Shogi, type: :K, enhanced?: true]
-    "Enhanced Shōgi King (#{actor.to_snn}:#{actor.to_pin})"
-  in Sashite::Gan::Actor[name: style, side: :second] if style == :Xiangqi
-    "Black Xiangqi piece (#{actor.to_snn}:#{actor.to_pin})"
-  else
-    "Other piece: #{actor.to_s} (#{actor.to_snn}:#{actor.to_pin})"
-  end
-end
-
-chess_king = Sashite::Gan.parse("CHESS:K")
-puts analyze_actor(chess_king)  # => "White Chess King (CHESS:K)"
-```
-
-### Validation and Error Handling
-```ruby
-# Comprehensive validation
-def safe_parse(gan_string)
-  return nil unless Sashite::Gan.valid?(gan_string)
-
-  Sashite::Gan.parse(gan_string)
-rescue ArgumentError => e
-  puts "Parse error: #{e.message}"
-  nil
-end
-
-# Batch validation with component extraction
-gan_strings = ["CHESS:K", "Chess:K", "SHOGI:+p", "invalid"]
-valid_actors = gan_strings.filter_map { |s| safe_parse(s) }
-
-puts "Valid actors with components:"
-valid_actors.each do |actor|
-  puts "  #{actor.to_s} -> style: #{actor.to_snn}, piece: #{actor.to_pin}"
-end
-
-# Module-level validation
-Sashite::Gan.valid?("CHESS:K")     # => true
-Sashite::Gan.valid?("chess:k")     # => true
-Sashite::Gan.valid?("Chess:K")     # => false (mixed case)
-Sashite::Gan.valid?("CHESS")       # => false (missing piece)
-Sashite::Gan.valid?("")            # => false (empty string)
 ```
 
 ## Protocol Mapping
@@ -683,6 +601,35 @@ GAN encodes piece attributes by combining SNN and PIN information:
 * **Protocol Compliance**: Direct implementation of Sashité piece attributes
 * **Immutable Design**: All operations return new instances, ensuring thread safety
 * **Compositional Architecture**: Built on independent SNN and PIN specifications
+* **Modular Validation**: Delegates validation to underlying components for consistency
+
+## Implementation Notes
+
+### Validation Architecture
+
+GAN follows a modular validation approach that leverages the underlying component libraries:
+
+1. **Component Splitting**: GAN strings are split on the colon separator
+2. **Individual Validation**: Each component is validated using its specific regex:
+   - SNN component: `Sashite::Snn::Style::SNN_PATTERN`
+   - PIN component: `Sashite::Pin::Piece::PIN_PATTERN`
+3. **Case Consistency**: Additional validation ensures matching case between components
+
+This approach:
+- **Avoids Code Duplication**: No need to maintain a separate GAN regex
+- **Maintains Consistency**: Automatically inherits validation improvements from SNN and PIN
+- **Provides Clear Error Messages**: Component-specific validation failures are more informative
+- **Enables Modularity**: Each library maintains its own validation logic
+
+### Component Handling Convention
+
+GAN follows the same internal representation conventions as its constituent libraries:
+
+1. **Style Names**: Always stored with proper capitalization (`:Chess`, `:Shogi`)
+2. **Piece Types**: Always stored as uppercase symbols (`:K`, `:P`)
+3. **Display Logic**: Case is computed from `side` during string rendering
+
+This ensures predictable behavior and consistency across the entire Sashité ecosystem.
 
 ## System Constraints
 

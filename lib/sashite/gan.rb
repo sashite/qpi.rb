@@ -6,7 +6,8 @@ module Sashite
   # GAN (General Actor Notation) implementation for Ruby
   #
   # Provides a rule-agnostic format for identifying game actors in abstract strategy board games
-  # by combining Style Name Notation (SNN) and Piece Identifier Notation (PIN) with a colon separator.
+  # by combining Style Name Notation (SNN) and Piece Identifier Notation (PIN) with a colon separator
+  # and consistent case encoding.
   #
   # GAN represents all four fundamental piece attributes from the Game Protocol:
   # - Type → PIN component (ASCII letter choice)
@@ -28,41 +29,20 @@ module Sashite
   #
   # See: https://sashite.dev/specs/gan/1.0.0/
   module Gan
-    # Regular expression for GAN validation
-    # Matches: <snn>:<pin> where snn and pin follow their respective specifications
-    # with consistent case encoding
-    GAN_REGEX = /\A([A-Z][A-Z0-9]*|[a-z][a-z0-9]*):[-+]?[A-Za-z]\z/
-
     # Check if a string is valid GAN notation
     #
-    # @param gan [String] The string to validate
+    # @param gan_string [String] The string to validate
     # @return [Boolean] true if valid GAN, false otherwise
     #
-    # @example
+    # @example Validate various GAN formats
     #   Sashite::Gan.valid?("CHESS:K")      # => true
     #   Sashite::Gan.valid?("shogi:+p")     # => true
     #   Sashite::Gan.valid?("Chess:K")      # => false (mixed case in style)
     #   Sashite::Gan.valid?("CHESS:k")      # => false (case mismatch)
     #   Sashite::Gan.valid?("CHESS")        # => false (missing piece)
     #   Sashite::Gan.valid?("")             # => false (empty string)
-    def self.valid?(gan)
-      return false unless gan.is_a?(::String)
-      return false if gan.empty?
-
-      # Quick regex check first
-      return false unless GAN_REGEX.match?(gan)
-
-      # Split and validate components individually for precise validation
-      parts = gan.split(":", 2)
-      return false unless parts.length == 2
-
-      snn_part, pin_part = parts
-
-      # Check case consistency between components
-      return false unless case_consistent?(snn_part, pin_part)
-
-      # Validate individual components using their respective libraries
-      Snn.valid?(snn_part) && Pin.valid?(pin_part)
+    def self.valid?(gan_string)
+      Actor.valid?(gan_string)
     end
 
     # Parse a GAN string into an Actor object
@@ -70,7 +50,7 @@ module Sashite
     # @param gan_string [String] GAN notation string
     # @return [Gan::Actor] new actor instance
     # @raise [ArgumentError] if the GAN string is invalid
-    # @example
+    # @example Parse different GAN formats
     #   Sashite::Gan.parse("CHESS:K")     # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
     #   Sashite::Gan.parse("shogi:+p")    # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
     #   Sashite::Gan.parse("XIANGQI:-G")  # => #<Gan::Actor name=:Xiangqi type=:G side=:first state=:diminished>
@@ -86,31 +66,11 @@ module Sashite
     # @param state [Symbol] piece state (:normal, :enhanced, or :diminished)
     # @return [Gan::Actor] new actor instance
     # @raise [ArgumentError] if parameters are invalid
-    # @example
+    # @example Create actors directly
     #   Sashite::Gan.actor(:Chess, :K, :first, :normal)     # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
     #   Sashite::Gan.actor(:Shogi, :P, :second, :enhanced)  # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
     def self.actor(name, type, side, state = :normal)
       Actor.new(name, type, side, state)
-    end
-
-    private
-
-    # Check case consistency between SNN and PIN components
-    #
-    # @param snn_part [String] the SNN component
-    # @param pin_part [String] the PIN component (with optional prefix)
-    # @return [Boolean] true if case is consistent, false otherwise
-    def self.case_consistent?(snn_part, pin_part)
-      # Extract letter from PIN part (remove optional +/- prefix)
-      pin_letter_match = pin_part.match(/[-+]?([A-Za-z])$/)
-      return false unless pin_letter_match
-
-      pin_letter = pin_letter_match[1]
-
-      snn_uppercase = snn_part == snn_part.upcase
-      pin_uppercase = pin_letter == pin_letter.upcase
-
-      snn_uppercase == pin_uppercase
     end
   end
 end

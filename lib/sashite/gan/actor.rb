@@ -102,6 +102,36 @@ module Sashite
         new(parsed_style.name, parsed_piece.type, parsed_style.side, parsed_piece.state)
       end
 
+      # Check if a string is a valid GAN notation
+      #
+      # @param gan_string [String] The string to validate
+      # @return [Boolean] true if valid GAN, false otherwise
+      #
+      # @example
+      #   Sashite::Gan::Actor.valid?("CHESS:K")      # => true
+      #   Sashite::Gan::Actor.valid?("shogi:+p")     # => true
+      #   Sashite::Gan::Actor.valid?("Chess:K")      # => false (mixed case in style)
+      #   Sashite::Gan::Actor.valid?("CHESS:k")      # => false (case mismatch)
+      #   Sashite::Gan::Actor.valid?("CHESS")        # => false (missing piece)
+      #   Sashite::Gan::Actor.valid?("")             # => false (empty string)
+      def self.valid?(gan_string)
+        return false unless gan_string.is_a?(::String)
+        return false if gan_string.empty?
+
+        # Split into SNN and PIN components
+        parts = gan_string.split(SEPARATOR, 2)
+        return false unless parts.length == 2
+
+        snn_part, pin_part = parts
+
+        # Validate each component with its specific regex
+        return false unless snn_part.match?(Snn::Style::SNN_PATTERN)
+        return false unless pin_part.match?(Pin::Piece::PIN_PATTERN)
+
+        # Check case consistency between components
+        case_consistent?(snn_part, pin_part)
+      end
+
       # Convert the actor to its GAN string representation
       #
       # @return [String] GAN notation string
@@ -177,6 +207,8 @@ module Sashite
       # @example
       #   actor.enhance  # CHESS:K => CHESS:+K
       def enhance
+        return self if enhanced?
+
         self.class.new(name, type, side, ENHANCED_STATE)
       end
 
@@ -186,6 +218,8 @@ module Sashite
       # @example
       #   actor.diminish  # CHESS:K => CHESS:-K
       def diminish
+        return self if diminished?
+
         self.class.new(name, type, side, DIMINISHED_STATE)
       end
 
@@ -195,6 +229,8 @@ module Sashite
       # @example
       #   actor.normalize  # CHESS:+K => CHESS:K
       def normalize
+        return self if normal?
+
         self.class.new(name, type, side, NORMAL_STATE)
       end
 
@@ -208,7 +244,6 @@ module Sashite
       #   actor.flip  # CHESS:K => chess:k
       #   enhanced.flip  # CHESS:+K => chess:+k (modifiers preserved)
       def flip
-        opposite_side = first_player? ? SECOND_PLAYER : FIRST_PLAYER
         self.class.new(name, type, opposite_side, state)
       end
 
@@ -219,6 +254,9 @@ module Sashite
       # @example
       #   actor.with_name(:Shogi)  # CHESS:K => SHOGI:K
       def with_name(new_name)
+        self.class.validate_name(new_name)
+        return self if name == new_name
+
         self.class.new(new_name, type, side, state)
       end
 
@@ -229,6 +267,9 @@ module Sashite
       # @example
       #   actor.with_type(:Q)  # CHESS:K => CHESS:Q
       def with_type(new_type)
+        self.class.validate_type(new_type)
+        return self if type == new_type
+
         self.class.new(name, new_type, side, state)
       end
 
@@ -239,6 +280,9 @@ module Sashite
       # @example
       #   actor.with_side(:second)  # CHESS:K => chess:k
       def with_side(new_side)
+        self.class.validate_side(new_side)
+        return self if side == new_side
+
         self.class.new(name, type, new_side, state)
       end
 
@@ -249,6 +293,9 @@ module Sashite
       # @example
       #   actor.with_state(:enhanced)  # CHESS:K => CHESS:+K
       def with_state(new_state)
+        self.class.validate_state(new_state)
+        return self if state == new_state
+
         self.class.new(name, type, side, new_state)
       end
 
@@ -405,6 +452,24 @@ module Sashite
         name_string.match?(/\A[A-Z][a-z0-9]*\z/)
       end
 
+      # Check case consistency between SNN and PIN components
+      #
+      # @param snn_part [String] the SNN component
+      # @param pin_part [String] the PIN component (with optional prefix)
+      # @return [Boolean] true if case is consistent, false otherwise
+      def self.case_consistent?(snn_part, pin_part)
+        # Extract letter from PIN part (remove optional +/- prefix)
+        pin_letter_match = pin_part.match(/[-+]?([A-Za-z])$/)
+        return false unless pin_letter_match
+
+        pin_letter = pin_letter_match[1]
+
+        snn_uppercase = snn_part == snn_part.upcase
+        pin_uppercase = pin_letter == pin_letter.upcase
+
+        snn_uppercase == pin_uppercase
+      end
+
       # Validate case consistency between SNN and PIN components
       #
       # @param snn_part [String] the SNN component
@@ -412,30 +477,12 @@ module Sashite
       # @param full_string [String] the full GAN string for error reporting
       # @raise [ArgumentError] if case mismatch detected
       def self.validate_case_consistency(snn_part, pin_part, full_string)
-        # Extract letter from PIN part (remove optional +/- prefix)
-        pin_letter = pin_part.match(/[-+]?([A-Za-z])$/)[1]
-
-        snn_uppercase = snn_part == snn_part.upcase
-        pin_uppercase = pin_letter == pin_letter.upcase
-
-        return if snn_uppercase == pin_uppercase
+        return if case_consistent?(snn_part, pin_part)
 
         raise ::ArgumentError, format(ERROR_CASE_MISMATCH, full_string)
       end
 
-      # Match GAN pattern against string
-      #
-      # @param string [String] string to match
-      # @return [MatchData] match data
-      # @raise [ArgumentError] if string doesn't match
-      def self.match_pattern(string)
-        matches = GAN_PATTERN.match(string)
-        return matches if matches
-
-        raise ::ArgumentError, format(ERROR_INVALID_GAN, string)
-      end
-
-      private_class_method :valid_name?, :validate_case_consistency
+      private_class_method :valid_name?, :case_consistent?, :validate_case_consistency
 
       private
 
@@ -448,6 +495,13 @@ module Sashite
       #
       # @return [Sashite::Pin::Piece] the piece component
       attr_reader :piece
+
+      # Get the opposite side
+      #
+      # @return [Symbol] the opposite side
+      def opposite_side
+        first_player? ? SECOND_PLAYER : FIRST_PLAYER
+      end
     end
   end
 end
