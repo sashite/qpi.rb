@@ -1,93 +1,116 @@
 # frozen_string_literal: true
 
-require "sashite/snn"
-require "sashite/pin"
 require_relative "gan/actor"
 
 module Sashite
-  # General Actor Notation (GAN) module
+  # GAN (General Actor Notation) implementation for Ruby
   #
-  # GAN provides a rule-agnostic format for identifying game actors in abstract strategy board games
-  # by combining Style Name Notation (SNN) with Piece Identifier Notation (PIN) with a colon separator.
+  # Provides a rule-agnostic format for identifying game actors in abstract strategy board games
+  # by combining Style Name Notation (SNN) and Piece Identifier Notation (PIN) with a colon separator.
   #
   # GAN represents all four fundamental piece attributes from the Game Protocol:
-  # - Type + Side → PIN component (ASCII letter with case encoding)
+  # - Type → PIN component (ASCII letter choice)
+  # - Side → Consistent case encoding across both SNN and PIN components
   # - State → PIN component (optional prefix modifier)
   # - Style → SNN component (explicit style identifier)
   #
-  # Unlike PNN which uses derivation markers, GAN explicitly names the style for unambiguous identification.
+  # Format: <snn>:<pin>
+  # - SNN component: Style identifier with case-based side encoding
+  # - Colon separator: Literal ":"
+  # - PIN component: Piece with optional state and case-based ownership
+  # - Case consistency: SNN and PIN components must have matching case
   #
-  # @see https://sashite.dev/specs/gan/1.0.0/ GAN Specification v1.0.0
+  # Examples:
+  #   "CHESS:K"    - First player chess king
+  #   "chess:k"    - Second player chess king
+  #   "SHOGI:+P"   - First player enhanced shōgi pawn
+  #   "xiangqi:-g" - Second player diminished xiangqi general
+  #
+  # See: https://sashite.dev/specs/gan/1.0.0/
   module Gan
-    # GAN validation regular expression
+    # Regular expression for GAN validation
     # Matches: <snn>:<pin> where snn and pin follow their respective specifications
-    VALIDATION_REGEX = /\A([A-Z][A-Z0-9]*|[a-z][a-z0-9]*):[-+]?[A-Za-z]\z/
+    # with consistent case encoding
+    GAN_REGEX = /\A([A-Z][A-Z0-9]*|[a-z][a-z0-9]*):[-+]?[A-Za-z]\z/
 
     # Check if a string is valid GAN notation
     #
-    # @param gan_string [String] The string to validate
-    # @return [Boolean] true if the string is valid GAN notation, false otherwise
+    # @param gan [String] The string to validate
+    # @return [Boolean] true if valid GAN, false otherwise
     #
     # @example
     #   Sashite::Gan.valid?("CHESS:K")      # => true
     #   Sashite::Gan.valid?("shogi:+p")     # => true
     #   Sashite::Gan.valid?("Chess:K")      # => false (mixed case in style)
+    #   Sashite::Gan.valid?("CHESS:k")      # => false (case mismatch)
     #   Sashite::Gan.valid?("CHESS")        # => false (missing piece)
     #   Sashite::Gan.valid?("")             # => false (empty string)
-    def self.valid?(gan_string)
-      return false unless gan_string.is_a?(String)
-      return false if gan_string.empty?
+    def self.valid?(gan)
+      return false unless gan.is_a?(::String)
+      return false if gan.empty?
 
       # Quick regex check first
-      return false unless VALIDATION_REGEX.match?(gan_string)
+      return false unless GAN_REGEX.match?(gan)
 
-      # Split and validate components individually for more precise validation
-      parts = gan_string.split(":", 2)
+      # Split and validate components individually for precise validation
+      parts = gan.split(":", 2)
       return false unless parts.length == 2
 
-      style_part, piece_part = parts
+      snn_part, pin_part = parts
 
-      # Validate SNN and PIN components using their respective libraries
-      Snn.valid?(style_part) && Pin.valid?(piece_part)
+      # Check case consistency between components
+      return false unless case_consistent?(snn_part, pin_part)
+
+      # Validate individual components using their respective libraries
+      Snn.valid?(snn_part) && Pin.valid?(pin_part)
     end
 
-    # Convenience method to create an actor object
+    # Parse a GAN string into an Actor object
     #
-    # @param style [String, Sashite::Snn::Style] The style identifier or style object
-    # @param piece [String, Sashite::Pin::Piece] The piece identifier or piece object
-    # @return [Sashite::Gan::Actor] A new actor object
-    # @raise [ArgumentError] if the parameters are invalid
-    #
+    # @param gan_string [String] GAN notation string
+    # @return [Gan::Actor] new actor instance
+    # @raise [ArgumentError] if the GAN string is invalid
     # @example
-    #   actor = Sashite::Gan.actor("CHESS", "K")
-    #   # => #<Sashite::Gan::Actor:0x... style="CHESS" piece="K">
-    #
-    #   # With objects
-    #   style = Sashite::Snn::Style.new("CHESS")
-    #   piece = Sashite::Pin::Piece.new("K")
-    #   actor = Sashite::Gan.actor(style, piece)
-    def self.actor(style, piece)
-      Actor.new(style, piece)
+    #   Sashite::Gan.parse("CHESS:K")     # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
+    #   Sashite::Gan.parse("shogi:+p")    # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
+    #   Sashite::Gan.parse("XIANGQI:-G")  # => #<Gan::Actor name=:Xiangqi type=:G side=:first state=:diminished>
+    def self.parse(gan_string)
+      Actor.parse(gan_string)
     end
 
-    # Parse a GAN string into component parts
+    # Create a new actor instance
     #
-    # @param gan_string [String] The GAN string to parse
-    # @return [Array<String>] An array containing [style_string, piece_string]
-    # @raise [ArgumentError] if the string is invalid GAN notation
-    #
+    # @param name [Symbol] style name (with proper capitalization)
+    # @param type [Symbol] piece type (:A to :Z)
+    # @param side [Symbol] player side (:first or :second)
+    # @param state [Symbol] piece state (:normal, :enhanced, or :diminished)
+    # @return [Gan::Actor] new actor instance
+    # @raise [ArgumentError] if parameters are invalid
     # @example
-    #   Sashite::Gan.parse_components("CHESS:K")
-    #   # => ["CHESS", "K"]
-    #
-    #   Sashite::Gan.parse_components("shogi:+p")
-    #   # => ["shogi", "+p"]
-    #
-    # @api private
-    def self.parse_components(gan_string)
-      raise ArgumentError, "Invalid GAN format: #{gan_string.inspect}" unless valid?(gan_string)
+    #   Sashite::Gan.actor(:Chess, :K, :first, :normal)     # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
+    #   Sashite::Gan.actor(:Shogi, :P, :second, :enhanced)  # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
+    def self.actor(name, type, side, state = :normal)
+      Actor.new(name, type, side, state)
+    end
 
-      gan_string.split(":", 2)
+    private
+
+    # Check case consistency between SNN and PIN components
+    #
+    # @param snn_part [String] the SNN component
+    # @param pin_part [String] the PIN component (with optional prefix)
+    # @return [Boolean] true if case is consistent, false otherwise
+    def self.case_consistent?(snn_part, pin_part)
+      # Extract letter from PIN part (remove optional +/- prefix)
+      pin_letter_match = pin_part.match(/[-+]?([A-Za-z])$/)
+      return false unless pin_letter_match
+
+      pin_letter = pin_letter_match[1]
+
+      snn_uppercase = snn_part == snn_part.upcase
+      pin_uppercase = pin_letter == pin_letter.upcase
+
+      snn_uppercase == pin_uppercase
     end
   end
 end

@@ -1,21 +1,22 @@
 # frozen_string_literal: true
 
 Gem::Specification.new do |spec|
-  spec.name                   = "sashite-gan"
-  spec.version                = ::File.read("VERSION.semver").chomp
-  spec.author                 = "Cyril Kato"
-  spec.email                  = "contact@cyril.email"
-  spec.summary                = "GAN (General Actor Notation) support for the Ruby language."
-  spec.description            = "A Ruby interface for serialization and deserialization of game actors in GAN format. " \
-                                "GAN provides a rule-agnostic format for identifying game actors in abstract strategy " \
-                                "board games by combining Style Name Notation (SNN) and Piece Identifier Notation (PIN) " \
-                                "with a colon separator. GAN represents all four fundamental piece attributes from the " \
-                                "Game Protocol: Type, Side, State, and Style, enabling unambiguous identification of " \
-                                "pieces in multi-style gaming environments."
-  spec.homepage               = "https://github.com/sashite/gan.rb"
-  spec.license                = "MIT"
-  spec.files                  = ::Dir["LICENSE.md", "README.md", "lib/**/*"]
-  spec.required_ruby_version  = ">= 3.2.0"
+  spec.name        = "sashite-gan"
+  spec.version     = ::File.read("VERSION.semver").chomp
+  spec.author      = "Cyril Kato"
+  spec.email       = "contact@cyril.email"
+  spec.summary     = "GAN (General Actor Notation) implementation for Ruby - board game piece identification"
+  spec.description = "A Ruby implementation of GAN (General Actor Notation) v1.0.0 specification for " \
+                     "identifying game actors in abstract strategy board games. GAN combines Style Name " \
+                     "Notation (SNN) and Piece Identifier Notation (PIN) with a colon separator to provide " \
+                     "complete, unambiguous piece identification. Represents all four fundamental piece " \
+                     "attributes: Type, Side, State, and Style. Enables cross-style gaming, immutable " \
+                     "transformations, and component extraction with to_pin/to_snn methods. Built on " \
+                     "sashite-snn and sashite-pin gems."
+  spec.homepage    = "https://github.com/sashite/gan.rb"
+  spec.license     = "MIT"
+  spec.files       = ::Dir["LICENSE.md", "README.md", "lib/**/*"]
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.add_dependency "sashite-pin", "~> 2.0.1"
   spec.add_dependency "sashite-snn", "~> 1.1.0"
