@@ -7,15 +7,17 @@ Gem::Specification.new do |spec|
   spec.email                  = "contact@cyril.email"
   spec.summary                = "GAN (General Actor Notation) support for the Ruby language."
   spec.description            = "A Ruby interface for serialization and deserialization of game actors in GAN format. " \
-                                "GAN is a consistent and rule-agnostic format for representing game actors in abstract " \
-                                "strategy board games, providing a standardized way to identify pieces with their " \
-                                "originating game."
+                                "GAN provides a rule-agnostic format for identifying game actors in abstract strategy " \
+                                "board games by combining Style Name Notation (SNN) and Piece Identifier Notation (PIN) " \
+                                "with a colon separator. GAN represents all four fundamental piece attributes from the " \
+                                "Game Protocol: Type, Side, State, and Style, enabling unambiguous identification of " \
+                                "pieces in multi-style gaming environments."
   spec.homepage               = "https://github.com/sashite/gan.rb"
   spec.license                = "MIT"
   spec.files                  = ::Dir["LICENSE.md", "README.md", "lib/**/*"]
   spec.required_ruby_version  = ">= 3.2.0"
 
-  spec.add_dependency "pnn", "~> 2.0.0"
+  spec.add_dependency "sashite-pin", "~> 1.1.0"
   spec.add_dependency "sashite-snn", "~> 1.0.0"
 
   spec.metadata = {
@@ -23,7 +25,7 @@ Gem::Specification.new do |spec|
     "documentation_uri"     => "https://rubydoc.info/github/sashite/gan.rb/main",
     "homepage_uri"          => "https://github.com/sashite/gan.rb",
     "source_code_uri"       => "https://github.com/sashite/gan.rb",
-    "specification_uri"     => "https://sashite.dev/documents/gan/1.0.0/",
+    "specification_uri"     => "https://sashite.dev/specs/gan/1.0.0/",
     "rubygems_mfa_required" => "true"
   }
 end

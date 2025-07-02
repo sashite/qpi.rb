@@ -1,22 +1,27 @@
 # frozen_string_literal: true
 
 require "sashite/snn"
-require "pnn"
+require "sashite/pin"
 require_relative "gan/actor"
 
 module Sashite
   # General Actor Notation (GAN) module
   #
-  # GAN provides a consistent and rule-agnostic format for identifying game actors
-  # in abstract strategy board games. It combines Style Name Notation (SNN) with
-  # Piece Name Notation (PNN) to create unambiguous actor identification that
-  # eliminates collision problems when multiple piece styles are present.
+  # GAN provides a rule-agnostic format for identifying game actors in abstract strategy board games
+  # by combining Style Name Notation (SNN) with Piece Identifier Notation (PIN) with a colon separator.
   #
-  # @see https://sashite.dev/documents/gan/1.0.0/ GAN Specification v1.0.0
+  # GAN represents all four fundamental piece attributes from the Game Protocol:
+  # - Type + Side → PIN component (ASCII letter with case encoding)
+  # - State → PIN component (optional prefix modifier)
+  # - Style → SNN component (explicit style identifier)
+  #
+  # Unlike PNN which uses derivation markers, GAN explicitly names the style for unambiguous identification.
+  #
+  # @see https://sashite.dev/specs/gan/1.0.0/ GAN Specification v1.0.0
   module Gan
     # GAN validation regular expression
-    # Matches: <snn>:<pnn> where snn and pnn follow their respective specifications
-    VALIDATION_REGEX = /\A([A-Z][A-Z0-9]*|[a-z][a-z0-9]*):[-+]?[a-zA-Z]'?\z/
+    # Matches: <snn>:<pin> where snn and pin follow their respective specifications
+    VALIDATION_REGEX = /\A([A-Z][A-Z0-9]*|[a-z][a-z0-9]*):[-+]?[A-Za-z]\z/
 
     # Check if a string is valid GAN notation
     #
@@ -25,7 +30,7 @@ module Sashite
     #
     # @example
     #   Sashite::Gan.valid?("CHESS:K")      # => true
-    #   Sashite::Gan.valid?("shogi:+p'")    # => true
+    #   Sashite::Gan.valid?("shogi:+p")     # => true
     #   Sashite::Gan.valid?("Chess:K")      # => false (mixed case in style)
     #   Sashite::Gan.valid?("CHESS")        # => false (missing piece)
     #   Sashite::Gan.valid?("")             # => false (empty string)
@@ -42,14 +47,14 @@ module Sashite
 
       style_part, piece_part = parts
 
-      # Validate SNN and PNN components using their respective libraries
-      Snn.valid?(style_part) && Pnn.valid?(piece_part)
+      # Validate SNN and PIN components using their respective libraries
+      Snn.valid?(style_part) && Pin.valid?(piece_part)
     end
 
     # Convenience method to create an actor object
     #
     # @param style [String, Sashite::Snn::Style] The style identifier or style object
-    # @param piece [String, Pnn::Piece] The piece identifier or piece object
+    # @param piece [String, Sashite::Pin::Piece] The piece identifier or piece object
     # @return [Sashite::Gan::Actor] A new actor object
     # @raise [ArgumentError] if the parameters are invalid
     #
@@ -59,7 +64,7 @@ module Sashite
     #
     #   # With objects
     #   style = Sashite::Snn::Style.new("CHESS")
-    #   piece = Pnn::Piece.new("K")
+    #   piece = Sashite::Pin::Piece.new("K")
     #   actor = Sashite::Gan.actor(style, piece)
     def self.actor(style, piece)
       Actor.new(style, piece)
@@ -75,8 +80,8 @@ module Sashite
     #   Sashite::Gan.parse_components("CHESS:K")
     #   # => ["CHESS", "K"]
     #
-    #   Sashite::Gan.parse_components("shogi:+p'")
-    #   # => ["shogi", "+p'"]
+    #   Sashite::Gan.parse_components("shogi:+p")
+    #   # => ["shogi", "+p"]
     #
     # @api private
     def self.parse_components(gan_string)

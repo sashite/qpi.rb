@@ -4,15 +4,15 @@
 module Sashite
   # General Actor Notation (GAN) implementation for Ruby
   #
-  # GAN defines a consistent and rule-agnostic format for identifying game actors
-  # in abstract strategy board games. GAN provides unambiguous identification of
-  # pieces by combining Style Name Notation (SNN) with Piece Name Notation (PNN),
-  # eliminating collision problems when multiple piece styles are present in the
-  # same context.
+  # GAN provides a rule-agnostic format for identifying game actors in abstract strategy board games
+  # by combining Style Name Notation (SNN) and Piece Identifier Notation (PIN) with a colon separator.
+  # GAN represents all four fundamental piece attributes from the Game Protocol:
+  # - Type + Side → PIN component (ASCII letter with case encoding)
+  # - State → PIN component (optional prefix modifier)
+  # - Style → SNN component (explicit style identifier)
   #
-  # @see https://sashite.dev/documents/gan/1.0.0/ GAN Specification v1.0.0
+  # @see https://sashite.dev/specs/gan/1.0.0/ GAN Specification v1.0.0
   # @author Sashité
-  # @since 1.0.0
 end
 
 require_relative "sashite/gan"

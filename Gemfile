@@ -5,8 +5,9 @@ source "https://rubygems.org"
 gemspec
 
 gem "bundler"
-gem "byebug"
+gem "debug"
 gem "rake"
+gem "rdoc"
 gem "rubocop"
 gem "rubocop-gitlab-security"
 gem "rubocop-md"
