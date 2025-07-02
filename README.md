@@ -45,6 +45,10 @@ actor.type                                     # => :K
 actor.side                                     # => :first
 actor.state                                    # => :normal
 
+# Extract individual components
+actor.to_snn                                   # => "CHESS"
+actor.to_pin                                   # => "K"
+
 # Create actors directly
 actor = Sashite::Gan.actor(:Chess, :K, :first, :normal)        # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
 actor = Sashite::Gan::Actor.new(:Shogi, :P, :second, :enhanced) # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
@@ -58,20 +62,26 @@ Sashite::Gan.valid?("CHESS")                   # => false (missing piece)
 # State manipulation (returns new immutable instances)
 enhanced = actor.enhance                       # => #<Gan::Actor name=:Chess type=:K side=:first state=:enhanced>
 enhanced.to_s                                  # => "CHESS:+K"
+enhanced.to_pin                                # => "+K"
 diminished = actor.diminish                    # => #<Gan::Actor name=:Chess type=:K side=:first state=:diminished>
 diminished.to_s                                # => "CHESS:-K"
+diminished.to_pin                              # => "-K"
 
 # Side manipulation
 flipped = actor.flip                           # => #<Gan::Actor name=:Chess type=:K side=:second state=:normal>
 flipped.to_s                                   # => "chess:k"
+flipped.to_snn                                 # => "chess"
+flipped.to_pin                                 # => "k"
 
 # Style manipulation
 shogi_actor = actor.with_name(:Shogi)          # => #<Gan::Actor name=:Shogi type=:K side=:first state=:normal>
 shogi_actor.to_s                               # => "SHOGI:K"
+shogi_actor.to_snn                             # => "SHOGI"
 
 # Type manipulation
 queen = actor.with_type(:Q)                    # => #<Gan::Actor name=:Chess type=:Q side=:first state=:normal>
 queen.to_s                                     # => "CHESS:Q"
+queen.to_pin                                   # => "Q"
 
 # State queries
 actor.normal?                                  # => true
@@ -95,6 +105,8 @@ chess1.same_name?(shogi)                       # => false (different styles)
 # Functional transformations can be chained
 black_promoted = Sashite::Gan.parse("CHESS:P").flip.enhance
 black_promoted.to_s                            # => "chess:+p"
+black_promoted.to_snn                          # => "chess"
+black_promoted.to_pin                          # => "+p"
 ```
 
 ## Format Specification
@@ -237,6 +249,35 @@ end
 - `#side` - Get player side (:first or :second)
 - `#state` - Get piece state (:normal, :enhanced, or :diminished)
 - `#to_s` - Convert to GAN string representation
+- `#to_pin` - Convert to PIN string representation (piece component only)
+- `#to_snn` - Convert to SNN string representation (style component only)
+
+#### Component Extraction
+
+The `to_pin` and `to_snn` methods allow extraction of individual notation components:
+
+```ruby
+actor = Sashite::Gan.parse("CHESS:+K")
+
+# Full GAN representation
+actor.to_s        # => "CHESS:+K"
+
+# Individual components
+actor.to_snn      # => "CHESS" (style component)
+actor.to_pin      # => "+K"    (piece component)
+
+# Component transformation example
+flipped = actor.flip
+flipped.to_s      # => "chess:+k"
+flipped.to_snn    # => "chess"  (lowercase for second player)
+flipped.to_pin    # => "+k"     (lowercase with state preserved)
+
+# State manipulation example
+normalized = actor.normalize
+normalized.to_s   # => "CHESS:K"
+normalized.to_pin # => "K"      (state modifier removed)
+normalized.to_snn # => "CHESS"  (style unchanged)
+```
 
 #### Component Handling
 
@@ -257,6 +298,10 @@ actor2.type        # => :K (same type)
 
 actor1.to_s        # => "CHESS:K" (uppercase display)
 actor2.to_s        # => "chess:k" (lowercase display)
+actor1.to_snn      # => "CHESS" (uppercase style)
+actor2.to_snn      # => "chess" (lowercase style)
+actor1.to_pin      # => "K" (uppercase piece)
+actor2.to_pin      # => "k" (lowercase piece)
 ```
 
 #### State Queries
@@ -292,6 +337,80 @@ actor2.to_s        # => "chess:k" (lowercase display)
 
 ## Advanced Usage
 
+### Component Extraction and Manipulation
+
+The new `to_pin` and `to_snn` methods enable powerful component-based operations:
+
+```ruby
+# Extract and manipulate components
+actor = Sashite::Gan.parse("SHOGI:+P")
+
+# Component extraction
+style_str = actor.to_snn    # => "SHOGI"
+piece_str = actor.to_pin    # => "+P"
+
+# Reconstruct from components
+reconstructed = "#{style_str}:#{piece_str}"  # => "SHOGI:+P"
+
+# Cross-component analysis
+actors = [
+  Sashite::Gan.parse("CHESS:K"),
+  Sashite::Gan.parse("SHOGI:K"),
+  Sashite::Gan.parse("chess:k")
+]
+
+# Group by style component
+by_style = actors.group_by(&:to_snn)
+# => {"CHESS" => [...], "SHOGI" => [...], "chess" => [...]}
+
+# Group by piece component
+by_piece = actors.group_by(&:to_pin)
+# => {"K" => [...], "k" => [...]}
+
+# Component-based filtering
+uppercase_styles = actors.select { |a| a.to_snn == a.to_snn.upcase }
+enhanced_pieces = actors.select { |a| a.to_pin.start_with?("+") }
+```
+
+### Component Reconstruction Patterns
+
+```ruby
+# Template-based reconstruction
+def apply_style_template(actors, new_style)
+  actors.map do |actor|
+    pin_part = actor.to_pin
+    side = actor.side
+
+    # Apply new style while preserving piece and side
+    new_style_str = side == :first ? new_style.to_s.upcase : new_style.to_s.downcase
+    Sashite::Gan.parse("#{new_style_str}:#{pin_part}")
+  end
+end
+
+# Convert chess pieces to shōgi style
+chess_pieces = [
+  Sashite::Gan.parse("CHESS:K"),
+  Sashite::Gan.parse("chess:+q")
+]
+
+shogi_pieces = apply_style_template(chess_pieces, :Shogi)
+# => [SHOGI:K, shogi:+q]
+
+# Component swapping
+def swap_components(actor1, actor2)
+  [
+    Sashite::Gan.parse("#{actor1.to_snn}:#{actor2.to_pin}"),
+    Sashite::Gan.parse("#{actor2.to_snn}:#{actor1.to_pin}")
+  ]
+end
+
+chess_king = Sashite::Gan.parse("CHESS:K")
+shogi_pawn = Sashite::Gan.parse("shogi:p")
+
+swapped = swap_components(chess_king, shogi_pawn)
+# => [CHESS:p, shogi:K]
+```
+
 ### Immutable Transformations
 ```ruby
 # All transformations return new instances
@@ -306,9 +425,17 @@ puts enhanced.to_s     # => "CHESS:+P"
 puts cross_style.to_s  # => "SHOGI:P"
 puts enemy.to_s        # => "chess:p"
 
+# Component extraction shows changes
+puts enhanced.to_pin   # => "+P" (state changed)
+puts cross_style.to_snn # => "SHOGI" (style changed)
+puts enemy.to_snn      # => "chess" (case changed)
+puts enemy.to_pin      # => "p" (case changed)
+
 # Transformations can be chained
 result = original.flip.with_name(:Xiangqi).enhance
 puts result.to_s       # => "xiangqi:+p"
+puts result.to_snn     # => "xiangqi"
+puts result.to_pin     # => "+p"
 ```
 
 ### Multi-Style Game Management
@@ -335,6 +462,11 @@ class CrossStyleGame
     sides = @style_assignments.values.map { |a| a[:side] }
     sides.uniq.size == 2  # Must have different sides
   end
+
+  def get_player_style_string(player)
+    actor = create_actor(player, :K)  # Use king as reference
+    actor.to_snn
+  end
 end
 
 # Usage
@@ -345,9 +477,11 @@ game.assign_style(:black, :Shogi)
 white_king = game.create_actor(:white, :K)
 black_king = game.create_actor(:black, :K)
 
-puts white_king.to_s  # => "CHESS:K"
-puts black_king.to_s  # => "shogi:k"
-puts game.valid_combination?  # => true
+puts white_king.to_s              # => "CHESS:K"
+puts white_king.to_snn            # => "CHESS"
+puts black_king.to_s              # => "shogi:k"
+puts black_king.to_snn            # => "shogi"
+puts game.valid_combination?       # => true
 ```
 
 ### Style Collision Resolution
@@ -362,14 +496,16 @@ def demonstrate_collision_resolution
   ]
 
   # All can coexist without ambiguity
-  pieces.each { |piece| puts "#{piece.name} #{piece.type}: #{piece.to_s}" }
-  # => Chess K: CHESS:R
-  # => Shogi K: SHOGI:R
-  # => Makruk K: MAKRUK:R
-  # => Xiangqi K: xiangqi:r
+  pieces.each do |piece|
+    puts "#{piece.name} #{piece.type}: #{piece.to_s} (style: #{piece.to_snn}, piece: #{piece.to_pin})"
+  end
+  # => Chess R: CHESS:R (style: CHESS, piece: R)
+  # => Shogi R: SHOGI:R (style: SHOGI, piece: R)
+  # => Makruk R: MAKRUK:R (style: MAKRUK, piece: R)
+  # => Xiangqi R: xiangqi:r (style: xiangqi, piece: r)
 
   # Group by style for analysis
-  by_style = pieces.group_by(&:name)
+  by_style = pieces.group_by(&:to_snn)
   by_style.each { |style, actors| puts "#{style}: #{actors.size} pieces" }
 end
 ```
@@ -379,21 +515,21 @@ end
 def simulate_captures
   # Traditional chess capture (identity preserved)
   black_pawn = Sashite::Gan.parse("chess:p")
-  puts "Before capture: #{black_pawn.to_s}"
+  puts "Before capture: #{black_pawn.to_s} (style: #{black_pawn.to_snn}, piece: #{black_pawn.to_pin})"
   # In chess, piece goes to reserve but retains identity
-  puts "After capture: #{black_pawn.to_s}"  # => "chess:p" (unchanged)
+  puts "After capture: #{black_pawn.to_s} (style: #{black_pawn.to_snn}, piece: #{black_pawn.to_pin})"
 
   # Shōgi capture (side changes, promotion lost)
   promoted_pawn = Sashite::Gan.parse("shogi:+p")
-  puts "Before capture: #{promoted_pawn.to_s}"
+  puts "Before capture: #{promoted_pawn.to_s} (style: #{promoted_pawn.to_snn}, piece: #{promoted_pawn.to_pin})"
   captured = promoted_pawn.flip.normalize
-  puts "After capture: #{captured.to_s}"     # => "SHOGI:P"
+  puts "After capture: #{captured.to_s} (style: #{captured.to_snn}, piece: #{captured.to_pin})"
 
   # Cross-style capture (complete transformation)
   chess_queen = Sashite::Gan.parse("chess:q")
-  puts "Before capture: #{chess_queen.to_s}"
+  puts "Before capture: #{chess_queen.to_s} (style: #{chess_queen.to_snn}, piece: #{chess_queen.to_pin})"
   transformed = chess_queen.flip.with_name(:Ogi).with_type(:P).normalize
-  puts "After capture: #{transformed.to_s}"  # => "OGI:P"
+  puts "After capture: #{transformed.to_s} (style: #{transformed.to_snn}, piece: #{transformed.to_pin})"
 end
 ```
 
@@ -415,7 +551,9 @@ pawn_promoter = create_promoter(->(actor) { actor.type == :P })
 # Apply transformations functionally
 enemy_pawn = Sashite::Gan.parse("shogi:p")
 captured_and_promoted = pawn_promoter.call(chess_capturer.call(enemy_pawn))
-puts captured_and_promoted.to_s  # => "CHESS:+P"
+
+puts "Original: #{enemy_pawn.to_s} (#{enemy_pawn.to_snn}:#{enemy_pawn.to_pin})"
+puts "Result: #{captured_and_promoted.to_s} (#{captured_and_promoted.to_snn}:#{captured_and_promoted.to_pin})"
 
 # Pipeline composition
 def compose(*functions)
@@ -424,7 +562,7 @@ end
 
 transformation = compose(chess_capturer, pawn_promoter)
 result = transformation.call(enemy_pawn)
-puts result.to_s  # => "CHESS:+P"
+puts "Composed result: #{result.to_s} (#{result.to_snn}:#{result.to_pin})"
 ```
 
 ### Collection Operations
@@ -443,14 +581,29 @@ by_style = actors.group_by(&:name)
 by_side = actors.group_by(&:side)
 by_type = actors.group_by(&:type)
 
+# Group by string components
+by_style_string = actors.group_by(&:to_snn)
+by_piece_string = actors.group_by(&:to_pin)
+
+puts "By style string: #{by_style_string.keys}"  # => ["CHESS", "shogi", "XIANGQI"]
+puts "By piece string: #{by_piece_string.keys}"  # => ["K", "Q", "k", "g", "G"]
+
 # Filter operations
 first_player_actors = actors.select(&:first_player?)
 chess_actors = actors.select { |a| a.name == :Chess }
 kings = actors.select { |a| a.type == :K }
+uppercase_styles = actors.select { |a| a.to_snn == a.to_snn.upcase }
 
 # Transform collections immutably
 enhanced_actors = actors.map(&:enhance)
 enemy_actors = actors.map(&:flip)
+
+# Show component changes
+puts "Enhanced actors:"
+enhanced_actors.each { |a| puts "  #{a.to_s} (pin: #{a.to_pin})" }
+
+puts "Enemy actors:"
+enemy_actors.each { |a| puts "  #{a.to_s} (snn: #{a.to_snn}, pin: #{a.to_pin})" }
 
 # Complex queries
 cross_style_pairs = actors.combination(2).select do |a1, a2|
@@ -465,18 +618,18 @@ puts "Cross-style pairs: #{cross_style_pairs.size}"
 def analyze_actor(actor)
   case actor
   in Sashite::Gan::Actor[name: :Chess, type: :K, side: :first]
-    "White Chess King"
+    "White Chess King (#{actor.to_snn}:#{actor.to_pin})"
   in Sashite::Gan::Actor[name: :Shogi, type: :K, enhanced?: true]
-    "Enhanced Shōgi King"
+    "Enhanced Shōgi King (#{actor.to_snn}:#{actor.to_pin})"
   in Sashite::Gan::Actor[name: style, side: :second] if style == :Xiangqi
-    "Black Xiangqi piece"
+    "Black Xiangqi piece (#{actor.to_snn}:#{actor.to_pin})"
   else
-    "Other piece: #{actor.to_s}"
+    "Other piece: #{actor.to_s} (#{actor.to_snn}:#{actor.to_pin})"
   end
 end
 
 chess_king = Sashite::Gan.parse("CHESS:K")
-puts analyze_actor(chess_king)  # => "White Chess King"
+puts analyze_actor(chess_king)  # => "White Chess King (CHESS:K)"
 ```
 
 ### Validation and Error Handling
@@ -491,10 +644,14 @@ rescue ArgumentError => e
   nil
 end
 
-# Batch validation
+# Batch validation with component extraction
 gan_strings = ["CHESS:K", "Chess:K", "SHOGI:+p", "invalid"]
 valid_actors = gan_strings.filter_map { |s| safe_parse(s) }
-puts "Valid actors: #{valid_actors.map(&:to_s)}"
+
+puts "Valid actors with components:"
+valid_actors.each do |actor|
+  puts "  #{actor.to_s} -> style: #{actor.to_snn}, piece: #{actor.to_pin}"
+end
 
 # Module-level validation
 Sashite::Gan.valid?("CHESS:K")     # => true
@@ -521,6 +678,7 @@ GAN encodes piece attributes by combining SNN and PIN information:
 * **Complete Identification**: Explicit representation of all four piece attributes
 * **Cross-Style Support**: Enables multi-tradition gaming environments
 * **Component Clarity**: Clear separation between style context and piece identity
+* **Component Extraction**: Individual SNN and PIN components accessible via `to_snn` and `to_pin`
 * **Unified Case Encoding**: Consistent case across both components for side identification
 * **Protocol Compliance**: Direct implementation of Sashité piece attributes
 * **Immutable Design**: All operations return new instances, ensuring thread safety
@@ -539,10 +697,12 @@ GAN is particularly useful for:
 
 1. **Multi-Style Environments**: Positions involving pieces from multiple style traditions
 2. **Cross-Style Games**: Games combining elements from different piece traditions
-3. **Game Engine Development**: Engines needing unambiguous piece identification
-4. **Database Systems**: Storing game data without naming conflicts
-5. **Hybrid Analysis**: Comparing strategic elements across different traditions
-6. **Functional Programming**: Immutable game state representations
+3. **Component Analysis**: Extracting and analyzing style and piece information separately
+4. **Game Engine Development**: Engines needing unambiguous piece identification
+5. **Database Systems**: Storing game data without naming conflicts
+6. **Hybrid Analysis**: Comparing strategic elements across different traditions
+7. **Functional Programming**: Immutable game state representations
+8. **Format Conversion**: Converting between GAN and individual SNN/PIN representations
 
 ## Dependencies
 

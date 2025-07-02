@@ -113,6 +113,28 @@ module Sashite
         "#{style}#{SEPARATOR}#{piece}"
       end
 
+      # Convert the actor to its PIN representation (piece component only)
+      #
+      # @return [String] PIN notation string for the piece component
+      # @example
+      #   actor.to_pin  # => "K"
+      #   promoted_actor.to_pin  # => "+p"
+      #   diminished_actor.to_pin  # => "-G"
+      def to_pin
+        piece.to_s
+      end
+
+      # Convert the actor to its SNN representation (style component only)
+      #
+      # @return [String] SNN notation string for the style component
+      # @example
+      #   actor.to_snn  # => "CHESS"
+      #   black_actor.to_snn  # => "chess"
+      #   xiangqi_actor.to_snn  # => "XIANGQI"
+      def to_snn
+        style.to_s
+      end
+
       # Get the style name
       #
       # @return [Symbol] style name (with proper capitalization)
