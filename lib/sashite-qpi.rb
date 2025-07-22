@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "sashite/gan"
+require_relative "sashite/qpi"
 
 # Sashité namespace for board game notation libraries
 #

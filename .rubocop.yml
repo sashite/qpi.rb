@@ -4,25 +4,13 @@ AllCops:
   
     - .DS_Store
   
-    - .rubocop-https---raw-githubusercontent-com-sashite-sashite-rubocop-rb-v1-0-3-config-rubocop-performance-yml
-  
-    - .rubocop-https---raw-githubusercontent-com-sashite-sashite-rubocop-rb-v1-0-3-config-rubocop-rake-yml
-  
-    - .rubocop-https---raw-githubusercontent-com-sashite-sashite-rubocop-rb-v1-0-3-config-rubocop-thread-safety-yml
-  
-    - .rubocop-https---raw-githubusercontent-com-sashite-sashite-rubocop-rb-v1-0-3-config-rubocop-yml
-  
     - .yardoc/
-  
-    - coverage/
   
     - doc/
   
     - lib/.DS_Store
   
     - lib/sashite/.DS_Store
-  
-    - pkg/
   
     - test.rb
     - config/**/*

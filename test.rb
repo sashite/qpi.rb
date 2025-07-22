@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-# Tests for Sashite::Gan (General Actor Notation)
+# Tests for Sashite::Qpi (Qualified Piece Identifier)
 #
-# Tests the GAN implementation for Ruby, focusing on the modern object-oriented API
-# with the Actor class using symbol-based attributes and the minimal module interface.
-# Tests integration between SNN and PIN components with case consistency validation.
+# Tests the QPI implementation for Ruby, focusing on the modern object-oriented API
+# with the Identifier class combining SIN and PIN components with semantic validation.
 
-require_relative "lib/sashite-gan"
+require_relative "lib/sashite-qpi"
 require "set"
 
 # Helper function to run a test and report errors
@@ -21,868 +20,553 @@ rescue StandardError => e
 end
 
 puts
-puts "Tests for Sashite::Gan (General Actor Notation)"
+puts "Tests for Sashite::Qpi (Qualified Piece Identifier)"
 puts
 
 # Test basic validation (module level)
-run_test("Module GAN validation accepts valid notations") do
-  valid_gans = [
-    "CHESS:K", "chess:k", "SHOGI:P", "shogi:p", "XIANGQI:G", "xiangqi:g",
-    "CHESS:+R", "chess:+r", "SHOGI:-P", "shogi:-p",
-    "CHESS960:K", "chess960:k", "KOTH:Q", "koth:q",
-    "A:A", "a:a", "Z:Z", "z:z", "ABC123:+A", "abc123:-z"
+run_test("Module QPI validation accepts valid notations") do
+  valid_qpis = [
+    "C:K", "C:Q", "C:R", "C:B", "C:N", "C:P",
+    "c:k", "c:q", "c:r", "c:b", "c:n", "c:p",
+    "S:K", "S:G", "S:S", "S:N", "S:L", "S:P",
+    "s:k", "s:g", "s:s", "s:n", "s:l", "s:p",
+    "C:+K", "C:+Q", "C:+R", "c:+k", "c:+q", "c:+r",
+    "S:-K", "S:-P", "s:-k", "s:-p",
+    "A:A", "Z:Z", "a:a", "z:z"
   ]
 
-  valid_gans.each do |gan|
-    raise "#{gan.inspect} should be valid" unless Sashite::Gan.valid?(gan)
+  valid_qpis.each do |qpi|
+    raise "#{qpi.inspect} should be valid" unless Sashite::Qpi.valid?(qpi)
   end
 end
 
-run_test("Module GAN validation rejects invalid notations") do
-  invalid_gans = [
-    "", "CHESS", ":K", "CHESS:", "CHESS:KK", "CHESS::K",
-    "Chess:K", "CHESS:k", "chess:K", "CHESS:+k", "chess:+K",
-    "CHESS-960:K", "CHESS_960:K", "CHESS 960:K", "CHESS:K+",
-    "CHESS:++K", "CHESS:--K", "CHESS:+-K", "CHESS:-+K",
-    "123:K", "CHESS:123", "!:K", "CHESS:!", "@:@", "#:#"
+run_test("Module QPI validation rejects invalid notations") do
+  invalid_qpis = [
+    # Missing separator
+    "", "C", "K", "CK", "Chess", "CHESS",
+
+    # Wrong separator
+    "C-K", "C K", "C.K", "C;K", "C|K",
+
+    # Multiple separators
+    "C:K:", ":C:K", "C::K", "C:K:R",
+
+    # Invalid SIN components
+    "CC:K", "1:K", "Chess:K", "CHESS:K", "!:K",
+
+    # Invalid PIN components
+    "C:KK", "C:1", "C:Chess", "C:++K", "C:--K", "C:+-K", "C:-+K",
+
+    # Semantic mismatches (different sides)
+    "C:k", "C:q", "C:+r", "C:-p",
+    "c:K", "c:Q", "c:+R", "c:-P",
+    "S:k", "S:+p", "s:K", "s:+P",
+
+    # Edge cases
+    ":", "C:", ":K", " C:K", "C:K ", " C:K ", "\tC:K", "C:K\t"
   ]
 
-  invalid_gans.each do |gan|
-    raise "#{gan.inspect} should be invalid" if Sashite::Gan.valid?(gan)
+  invalid_qpis.each do |qpi|
+    raise "#{qpi.inspect} should be invalid" if Sashite::Qpi.valid?(qpi)
   end
 end
 
-run_test("Module GAN validation handles non-string input") do
-  non_strings = [nil, 123, :chess, [], {}, true, false, 1.5]
+run_test("Module QPI validation handles non-string input") do
+  non_strings = [nil, 123, :chess, [], {}, true, false, 1.5, Object.new]
 
   non_strings.each do |input|
-    raise "#{input.inspect} should be invalid" if Sashite::Gan.valid?(input)
+    raise "#{input.inspect} should be invalid" if Sashite::Qpi.valid?(input)
   end
 end
 
-# Test module parse method delegates to Actor
-run_test("Module parse delegates to Actor class") do
-  gan_string = "CHESS:K"
-  actor = Sashite::Gan.parse(gan_string)
+# Test module parse method delegates to Identifier
+run_test("Module parse delegates to Identifier class") do
+  qpi_string = "C:+R"
+  identifier = Sashite::Qpi.parse(qpi_string)
 
-  raise "parse should return Actor instance" unless actor.is_a?(Sashite::Gan::Actor)
-  raise "actor should have correct GAN string" unless actor.to_s == gan_string
+  raise "parse should return Identifier instance" unless identifier.is_a?(Sashite::Qpi::Identifier)
+  raise "identifier should have correct QPI string" unless identifier.to_s == qpi_string
 end
 
-# Test module actor factory method
-run_test("Module actor factory method creates correct instances") do
-  actor = Sashite::Gan.actor(:Chess, :K, :first, :enhanced)
+# Test module identifier factory method
+run_test("Module identifier factory method creates correct instances") do
+  identifier = Sashite::Qpi.identifier("C", "K")
 
-  raise "actor factory should return Actor instance" unless actor.is_a?(Sashite::Gan::Actor)
-  raise "actor should have correct name" unless actor.name == :Chess
-  raise "actor should have correct type" unless actor.type == :K
-  raise "actor should have correct side" unless actor.side == :first
-  raise "actor should have correct state" unless actor.state == :enhanced
-  raise "actor should have correct GAN string" unless actor.to_s == "CHESS:+K"
+  raise "identifier factory should return Identifier instance" unless identifier.is_a?(Sashite::Qpi::Identifier)
+  raise "identifier should have correct SIN" unless identifier.sin == :C
+  raise "identifier should have correct PIN" unless identifier.pin == :K
+  raise "identifier should have correct QPI string" unless identifier.to_s == "C:K"
 end
 
-# Test Actor class valid? method
-run_test("Actor.valid? accepts valid notations") do
-  valid_gans = [
-    "CHESS:K", "chess:k", "SHOGI:+P", "shogi:-p", "XIANGQI:G", "xiangqi:g"
-  ]
-
-  valid_gans.each do |gan|
-    raise "#{gan.inspect} should be valid" unless Sashite::Gan::Actor.valid?(gan)
-  end
-end
-
-run_test("Actor.valid? rejects invalid notations") do
-  invalid_gans = [
-    "", "CHESS", "Chess:K", "CHESS:k", "chess:K", "CHESS:+k", "chess:+K"
-  ]
-
-  invalid_gans.each do |gan|
-    raise "#{gan.inspect} should be invalid" if Sashite::Gan::Actor.valid?(gan)
-  end
-end
-
-run_test("Actor.valid? validates case consistency") do
-  # Valid case consistency
-  valid_cases = [
-    "CHESS:K", "chess:k", "SHOGI:+R", "shogi:-p"
-  ]
-
-  valid_cases.each do |gan|
-    raise "#{gan.inspect} should be valid (case consistent)" unless Sashite::Gan::Actor.valid?(gan)
-  end
-
-  # Invalid case consistency
-  invalid_cases = [
-    "CHESS:k", "chess:K", "SHOGI:+r", "shogi:-P"
-  ]
-
-  invalid_cases.each do |gan|
-    raise "#{gan.inspect} should be invalid (case mismatch)" if Sashite::Gan::Actor.valid?(gan)
-  end
-end
-
-# Test the Actor class with new symbol-based API
-run_test("Actor.parse creates correct instances with symbol attributes") do
+# Test the Identifier class with component-based API
+run_test("Identifier.parse creates correct instances with component attributes") do
   test_cases = {
-    "CHESS:K" => { name: :Chess, type: :K, side: :first, state: :normal },
-    "chess:k" => { name: :Chess, type: :K, side: :second, state: :normal },
-    "SHOGI:+P" => { name: :Shogi, type: :P, side: :first, state: :enhanced },
-    "xiangqi:-g" => { name: :Xiangqi, type: :G, side: :second, state: :diminished }
+    "C:K" => { sin: :C, pin: :K, style: :C, type: :K, side: :first, state: :normal },
+    "c:k" => { sin: :c, pin: :k, style: :c, type: :K, side: :second, state: :normal },
+    "S:+R" => { sin: :S, pin: :"+R", style: :S, type: :R, side: :first, state: :enhanced },
+    "s:-p" => { sin: :s, pin: :"-p", style: :s, type: :P, side: :second, state: :diminished }
   }
 
-  test_cases.each do |gan_string, expected|
-    actor = Sashite::Gan.parse(gan_string)
+  test_cases.each do |qpi_string, expected|
+    identifier = Sashite::Qpi.parse(qpi_string)
 
-    raise "#{gan_string}: wrong name" unless actor.name == expected[:name]
-    raise "#{gan_string}: wrong type" unless actor.type == expected[:type]
-    raise "#{gan_string}: wrong side" unless actor.side == expected[:side]
-    raise "#{gan_string}: wrong state" unless actor.state == expected[:state]
+    raise "#{qpi_string}: wrong sin" unless identifier.sin == expected[:sin]
+    raise "#{qpi_string}: wrong pin" unless identifier.pin == expected[:pin]
+    raise "#{qpi_string}: wrong style" unless identifier.style == expected[:style]
+    raise "#{qpi_string}: wrong type" unless identifier.type == expected[:type]
+    raise "#{qpi_string}: wrong side" unless identifier.side == expected[:side]
+    raise "#{qpi_string}: wrong state" unless identifier.state == expected[:state]
   end
 end
 
-run_test("Actor constructor with symbol parameters") do
+run_test("Identifier constructor with component parameters") do
   test_cases = [
-    [:Chess, :K, :first, :normal, "CHESS:K"],
-    [:Chess, :K, :second, :normal, "chess:k"],
-    [:Shogi, :P, :first, :enhanced, "SHOGI:+P"],
-    [:Xiangqi, :G, :second, :diminished, "xiangqi:-g"]
+    ["C", "K", "C:K"],
+    ["c", "k", "c:k"],
+    ["S", "+R", "S:+R"],
+    ["s", "-p", "s:-p"]
   ]
 
-  test_cases.each do |name, type, side, state, expected_gan|
-    actor = Sashite::Gan::Actor.new(name, type, side, state)
+  test_cases.each do |sin_str, pin_str, expected_qpi|
+    identifier = Sashite::Qpi::Identifier.new(sin_str, pin_str)
 
-    raise "name should be #{name}" unless actor.name == name
-    raise "type should be #{type}" unless actor.type == type
-    raise "side should be #{side}" unless actor.side == side
-    raise "state should be #{state}" unless actor.state == state
-    raise "GAN string should be #{expected_gan}" unless actor.to_s == expected_gan
+    raise "sin should be #{sin_str}" unless identifier.sin.to_s == sin_str
+    raise "pin should be #{pin_str}" unless identifier.pin.to_s == pin_str
+    raise "QPI string should be #{expected_qpi}" unless identifier.to_s == expected_qpi
   end
 end
 
-run_test("Actor to_s returns correct GAN string") do
+run_test("Identifier to_s returns correct QPI string") do
   test_cases = [
-    [:Chess, :K, :first, :normal, "CHESS:K"],
-    [:Chess, :K, :second, :normal, "chess:k"],
-    [:Shogi, :P, :first, :enhanced, "SHOGI:+P"],
-    [:Xiangqi, :G, :second, :diminished, "xiangqi:-g"]
+    ["C", "K", "C:K"],
+    ["c", "k", "c:k"],
+    ["S", "+R", "S:+R"],
+    ["s", "-p", "s:-p"]
   ]
 
-  test_cases.each do |name, type, side, state, expected|
-    actor = Sashite::Gan::Actor.new(name, type, side, state)
-    result = actor.to_s
+  test_cases.each do |sin_str, pin_str, expected|
+    identifier = Sashite::Qpi::Identifier.new(sin_str, pin_str)
+    result = identifier.to_s
 
-    raise "#{name}, #{type}, #{side}, #{state} should be #{expected}, got #{result}" unless result == expected
+    raise "#{sin_str}, #{pin_str} should be #{expected}, got #{result}" unless result == expected
   end
 end
 
-run_test("Actor to_pin and to_snn methods") do
+run_test("Identifier component extraction methods") do
   test_cases = [
-    ["CHESS:K", "CHESS", "K"],
-    ["chess:k", "chess", "k"],
-    ["SHOGI:+P", "SHOGI", "+P"],
-    ["xiangqi:-g", "xiangqi", "-g"]
+    ["C:K", "C", "K"],
+    ["c:k", "c", "k"],
+    ["S:+R", "S", "+R"],
+    ["s:-p", "s", "-p"]
   ]
 
-  test_cases.each do |gan_string, expected_snn, expected_pin|
-    actor = Sashite::Gan.parse(gan_string)
+  test_cases.each do |qpi_string, expected_sin, expected_pin|
+    identifier = Sashite::Qpi.parse(qpi_string)
 
-    raise "#{gan_string}: wrong to_snn" unless actor.to_snn == expected_snn
-    raise "#{gan_string}: wrong to_pin" unless actor.to_pin == expected_pin
-    raise "#{gan_string}: to_s should equal to_snn:to_pin" unless actor.to_s == "#{actor.to_snn}:#{actor.to_pin}"
+    raise "#{qpi_string}: wrong to_sin" unless identifier.to_sin == expected_sin
+    raise "#{qpi_string}: wrong to_pin" unless identifier.to_pin == expected_pin
+    raise "#{qpi_string}: to_s should equal sin:pin" unless identifier.to_s == "#{identifier.to_sin}:#{identifier.to_pin}"
   end
 end
 
-run_test("Actor state mutations return new instances") do
-  actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
+run_test("Identifier component access methods") do
+  identifier = Sashite::Qpi.parse("S:+K")
+
+  # Test component objects
+  sin_component = identifier.sin_component
+  pin_component = identifier.pin_component
+
+  raise "sin_component should be SIN identifier" unless sin_component.is_a?(Sashite::Sin::Identifier)
+  raise "pin_component should be PIN identifier" unless pin_component.is_a?(Sashite::Pin::Identifier)
+  raise "sin_component should match" unless sin_component.to_s == "S"
+  raise "pin_component should match" unless pin_component.to_s == "+K"
+end
+
+run_test("Identifier state transformations return new instances") do
+  identifier = Sashite::Qpi::Identifier.new("C", "K")
 
   # Test enhance
-  enhanced = actor.enhance
-  raise "enhance should return new instance" if enhanced.equal?(actor)
-  raise "enhanced actor should be enhanced" unless enhanced.enhanced?
-  raise "enhanced actor state should be :enhanced" unless enhanced.state == :enhanced
-  raise "original actor should be unchanged" unless actor.state == :normal
-  raise "enhanced actor should have same name, type, and side" unless enhanced.name == actor.name && enhanced.type == actor.type && enhanced.side == actor.side
+  enhanced = identifier.enhance
+  raise "enhance should return new instance" if enhanced.equal?(identifier)
+  raise "enhanced identifier should be enhanced" unless enhanced.enhanced?
+  raise "enhanced identifier should have enhanced PIN" unless enhanced.to_pin == "+K"
+  raise "enhanced identifier should keep same SIN" unless enhanced.to_sin == "C"
+  raise "original identifier should be unchanged" unless identifier.to_s == "C:K"
 
   # Test diminish
-  diminished = actor.diminish
-  raise "diminish should return new instance" if diminished.equal?(actor)
-  raise "diminished actor should be diminished" unless diminished.diminished?
-  raise "diminished actor state should be :diminished" unless diminished.state == :diminished
-  raise "original actor should be unchanged" unless actor.state == :normal
+  diminished = identifier.diminish
+  raise "diminish should return new instance" if diminished.equal?(identifier)
+  raise "diminished identifier should be diminished" unless diminished.diminished?
+  raise "diminished identifier should have diminished PIN" unless diminished.to_pin == "-K"
+  raise "diminished identifier should keep same SIN" unless diminished.to_sin == "C"
 
-  # Test flip
-  flipped = actor.flip
-  raise "flip should return new instance" if flipped.equal?(actor)
-  raise "flipped actor should have opposite side" unless flipped.side == :second
-  raise "flipped actor should have same name, type, and state" unless flipped.name == actor.name && flipped.type == actor.type && flipped.state == actor.state
-  raise "original actor should be unchanged" unless actor.side == :first
+  # Test normalize
+  normalized = enhanced.normalize
+  raise "normalize should return new instance" if normalized.equal?(enhanced)
+  raise "normalized identifier should be normal" unless normalized.normal?
+  raise "normalized identifier should equal original" unless normalized.to_s == identifier.to_s
 end
 
-run_test("Actor attribute transformations") do
-  actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
-
-  # Test with_name
-  shogi = actor.with_name(:Shogi)
-  raise "with_name should return new instance" if shogi.equal?(actor)
-  raise "new actor should have different name" unless shogi.name == :Shogi
-  raise "new actor should have same type, side, and state" unless shogi.type == actor.type && shogi.side == actor.side && shogi.state == actor.state
+run_test("Identifier attribute transformations") do
+  identifier = Sashite::Qpi::Identifier.new("C", "K")
 
   # Test with_type
-  queen = actor.with_type(:Q)
-  raise "with_type should return new instance" if queen.equal?(actor)
-  raise "new actor should have different type" unless queen.type == :Q
-  raise "new actor should have same name, side, and state" unless queen.name == actor.name && queen.side == actor.side && queen.state == actor.state
+  queen = identifier.with_type(:Q)
+  raise "with_type should return new instance" if queen.equal?(identifier)
+  raise "new identifier should have different type" unless queen.type == :Q
+  raise "new identifier should have same style and side" unless queen.to_s == "C:Q"
 
-  # Test with_side
-  black_king = actor.with_side(:second)
-  raise "with_side should return new instance" if black_king.equal?(actor)
-  raise "new actor should have different side" unless black_king.side == :second
-  raise "new actor should have same name, type, and state" unless black_king.name == actor.name && black_king.type == actor.type && black_king.state == actor.state
+  # Test with_style
+  shogi_king = identifier.with_style(:S)
+  raise "with_style should return new instance" if shogi_king.equal?(identifier)
+  raise "new identifier should have different style" unless shogi_king.style == :S
+  raise "new identifier should have same type and side" unless shogi_king.to_s == "S:K"
 
-  # Test with_state
-  enhanced_king = actor.with_state(:enhanced)
-  raise "with_state should return new instance" if enhanced_king.equal?(actor)
-  raise "new actor should have different state" unless enhanced_king.state == :enhanced
-  raise "new actor should have same name, type, and side" unless enhanced_king.name == actor.name && enhanced_king.type == actor.type && enhanced_king.side == actor.side
+  # Test flip_side
+  black_king = identifier.flip_side
+  raise "flip_side should return new instance" if black_king.equal?(identifier)
+  raise "flipped identifier should be second player" unless black_king.second_player?
+  raise "flipped identifier should have both components flipped" unless black_king.to_s == "c:k"
+
+  # Test flip_style
+  black_style = identifier.flip_style
+  raise "flip_style should return new instance" if black_style.equal?(identifier)
+  raise "flipped style should have lowercase SIN" unless black_style.to_sin == "c"
+  raise "flipped style should keep same PIN" unless black_style.to_pin == "K"
+
+  # Test flip (should be same as flip_side)
+  flipped = identifier.flip
+  raise "flip should equal flip_side" unless flipped.to_s == black_king.to_s
 end
 
-run_test("Actor immutability") do
-  actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :enhanced)
+run_test("Identifier with_components method") do
+  identifier = Sashite::Qpi::Identifier.new("C", "K")
 
-  # Test that actor is frozen
-  raise "actor should be frozen" unless actor.frozen?
-
-  # Test that mutations don't affect original
-  original_string = actor.to_s
-  normalized = actor.normalize
-
-  raise "original actor should be unchanged after normalize" unless actor.to_s == original_string
-  raise "normalized actor should be different" unless normalized.to_s == "CHESS:K"
+  new_identifier = identifier.with_components("S", "+R")
+  raise "with_components should return new instance" if new_identifier.equal?(identifier)
+  raise "new identifier should have new components" unless new_identifier.to_s == "S:+R"
+  raise "original should be unchanged" unless identifier.to_s == "C:K"
 end
 
-run_test("Actor equality and hash") do
-  actor1 = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
-  actor2 = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
-  actor3 = Sashite::Gan::Actor.new(:Chess, :K, :second, :normal)
-  actor4 = Sashite::Gan::Actor.new(:Chess, :K, :first, :enhanced)
+run_test("Identifier immutability") do
+  identifier = Sashite::Qpi::Identifier.new("S", "+R")
+
+  # Test that identifier is frozen
+  raise "identifier should be frozen" unless identifier.frozen?
+
+  # Test that transformations don't affect original
+  original_string = identifier.to_s
+  enhanced = identifier.enhance
+  normalized = identifier.normalize
+
+  raise "original identifier should be unchanged" unless identifier.to_s == original_string
+  raise "enhanced should be different" unless enhanced.to_s == "S:+R" # Already enhanced
+  raise "normalized should be different" unless normalized.to_s == "S:R"
+end
+
+run_test("Identifier equality and hash") do
+  identifier1 = Sashite::Qpi::Identifier.new("C", "K")
+  identifier2 = Sashite::Qpi::Identifier.new("C", "K")
+  identifier3 = Sashite::Qpi::Identifier.new("c", "k")
+  identifier4 = Sashite::Qpi::Identifier.new("S", "K")
 
   # Test equality
-  raise "identical actors should be equal" unless actor1 == actor2
-  raise "different side should not be equal" if actor1 == actor3
-  raise "different state should not be equal" if actor1 == actor4
+  raise "identical identifiers should be equal" unless identifier1 == identifier2
+  raise "different side should not be equal" if identifier1 == identifier3
+  raise "different style should not be equal" if identifier1 == identifier4
 
   # Test hash consistency
-  raise "equal actors should have same hash" unless actor1.hash == actor2.hash
+  raise "equal identifiers should have same hash" unless identifier1.hash == identifier2.hash
 
   # Test in hash/set
-  actors_set = Set.new([actor1, actor2, actor3, actor4])
-  raise "set should contain 3 unique actors" unless actors_set.size == 3
+  identifiers_set = Set.new([identifier1, identifier2, identifier3, identifier4])
+  raise "set should contain 3 unique identifiers" unless identifiers_set.size == 3
 end
 
-run_test("Actor name, type, side, and state identification") do
+run_test("Identifier attribute access") do
   test_cases = [
-    ["CHESS:K", :Chess, :K, :first, :normal, true, false],
-    ["chess:k", :Chess, :K, :second, :normal, false, true],
-    ["SHOGI:+P", :Shogi, :P, :first, :enhanced, true, false],
-    ["xiangqi:-g", :Xiangqi, :G, :second, :diminished, false, true]
+    ["C:K", :C, :K, :C, :K, :first, :normal],
+    ["c:k", :c, :k, :c, :K, :second, :normal],
+    ["S:+R", :S, :"+R", :S, :R, :first, :enhanced],
+    ["s:-p", :s, :"-p", :s, :P, :second, :diminished]
   ]
 
-  test_cases.each do |gan_string, expected_name, expected_type, expected_side, expected_state, is_first, is_second|
-    actor = Sashite::Gan.parse(gan_string)
+  test_cases.each do |qpi_string, expected_sin, expected_pin, expected_style, expected_type, expected_side, expected_state|
+    identifier = Sashite::Qpi.parse(qpi_string)
 
-    raise "#{gan_string}: wrong name" unless actor.name == expected_name
-    raise "#{gan_string}: wrong type" unless actor.type == expected_type
-    raise "#{gan_string}: wrong side" unless actor.side == expected_side
-    raise "#{gan_string}: wrong state" unless actor.state == expected_state
-    raise "#{gan_string}: wrong first_player?" unless actor.first_player? == is_first
-    raise "#{gan_string}: wrong second_player?" unless actor.second_player? == is_second
+    raise "#{qpi_string}: wrong sin" unless identifier.sin == expected_sin
+    raise "#{qpi_string}: wrong pin" unless identifier.pin == expected_pin
+    raise "#{qpi_string}: wrong style" unless identifier.style == expected_style
+    raise "#{qpi_string}: wrong type" unless identifier.type == expected_type
+    raise "#{qpi_string}: wrong side" unless identifier.side == expected_side
+    raise "#{qpi_string}: wrong state" unless identifier.state == expected_state
   end
 end
 
-run_test("Actor same_name?, same_type?, same_side?, and same_state? methods") do
-  chess1 = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
-  chess2 = Sashite::Gan::Actor.new(:Chess, :Q, :second, :enhanced)
-  shogi1 = Sashite::Gan::Actor.new(:Shogi, :K, :first, :normal)
-  shogi2 = Sashite::Gan::Actor.new(:Shogi, :P, :second, :enhanced)
+run_test("Identifier comparison methods") do
+  chess_white_king = Sashite::Qpi::Identifier.new("C", "K")
+  chess_black_king = Sashite::Qpi::Identifier.new("c", "k")
+  chess_white_queen = Sashite::Qpi::Identifier.new("C", "Q")
+  shogi_white_king = Sashite::Qpi::Identifier.new("S", "K")
+  enhanced_chess_king = Sashite::Qpi::Identifier.new("C", "+K")
 
-  # same_name? tests
-  raise "Chess and Chess should be same name" unless chess1.same_name?(chess2)
-  raise "Chess and Shogi should not be same name" if chess1.same_name?(shogi1)
+  # same_style? tests
+  raise "C and c should be same style" unless chess_white_king.same_style?(chess_black_king)
+  raise "C and S should not be same style" if chess_white_king.same_style?(shogi_white_king)
 
-  # same_type? tests
-  raise "K and K should be same type" unless chess1.same_type?(shogi1)
-  raise "K and Q should not be same type" if chess1.same_type?(chess2)
+  # cross_style? tests
+  raise "C and S should be cross style" unless chess_white_king.cross_style?(shogi_white_king)
+  raise "C and c should not be cross style" if chess_white_king.cross_style?(chess_black_king)
 
   # same_side? tests
-  raise "first player actors should be same side" unless chess1.same_side?(shogi1)
-  raise "different side actors should not be same side" if chess1.same_side?(chess2)
+  raise "first player identifiers should be same side" unless chess_white_king.same_side?(chess_white_queen)
+  raise "first player identifiers should be same side" unless chess_white_king.same_side?(shogi_white_king)
+  raise "different side identifiers should not be same side" if chess_white_king.same_side?(chess_black_king)
+
+  # same_type? tests
+  raise "K and K should be same type" unless chess_white_king.same_type?(chess_black_king)
+  raise "K and K should be same type" unless chess_white_king.same_type?(shogi_white_king)
+  raise "K and Q should not be same type" if chess_white_king.same_type?(chess_white_queen)
 
   # same_state? tests
-  raise "normal actors should be same state" unless chess1.same_state?(shogi1)
-  raise "enhanced actors should be same state" unless chess2.same_state?(shogi2)
-  raise "different state actors should not be same state" if chess1.same_state?(chess2)
+  raise "normal identifiers should be same state" unless chess_white_king.same_state?(chess_black_king)
+  raise "different state identifiers should not be same state" if chess_white_king.same_state?(enhanced_chess_king)
 end
 
-run_test("Actor state methods") do
-  normal = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
-  enhanced = Sashite::Gan::Actor.new(:Chess, :K, :first, :enhanced)
-  diminished = Sashite::Gan::Actor.new(:Chess, :K, :first, :diminished)
+run_test("Identifier state methods") do
+  normal = Sashite::Qpi::Identifier.new("C", "K")
+  enhanced = Sashite::Qpi::Identifier.new("C", "+K")
+  diminished = Sashite::Qpi::Identifier.new("C", "-K")
 
   # Test state identification
-  raise "normal actor should be normal" unless normal.normal?
-  raise "normal actor should not be enhanced" if normal.enhanced?
-  raise "normal actor should not be diminished" if normal.diminished?
-  raise "normal actor state should be :normal" unless normal.state == :normal
+  raise "normal identifier should be normal" unless normal.normal?
+  raise "normal identifier should not be enhanced" if normal.enhanced?
+  raise "normal identifier should not be diminished" if normal.diminished?
 
-  raise "enhanced actor should be enhanced" unless enhanced.enhanced?
-  raise "enhanced actor should not be normal" if enhanced.normal?
-  raise "enhanced actor state should be :enhanced" unless enhanced.state == :enhanced
+  raise "enhanced identifier should be enhanced" unless enhanced.enhanced?
+  raise "enhanced identifier should not be normal" if enhanced.normal?
+  raise "enhanced identifier should not be diminished" if enhanced.diminished?
 
-  raise "diminished actor should be diminished" unless diminished.diminished?
-  raise "diminished actor should not be normal" if diminished.normal?
-  raise "diminished actor state should be :diminished" unless diminished.state == :diminished
+  raise "diminished identifier should be diminished" unless diminished.diminished?
+  raise "diminished identifier should not be normal" if diminished.normal?
+  raise "diminished identifier should not be enhanced" if diminished.enhanced?
 end
 
-run_test("Actor transformation methods return self when appropriate") do
-  normal_actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
-  enhanced_actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :enhanced)
-  diminished_actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :diminished)
+run_test("Identifier side methods") do
+  first_player = Sashite::Qpi::Identifier.new("C", "K")
+  second_player = Sashite::Qpi::Identifier.new("c", "k")
+
+  raise "first player identifier should be first player" unless first_player.first_player?
+  raise "first player identifier should not be second player" if first_player.second_player?
+
+  raise "second player identifier should be second player" unless second_player.second_player?
+  raise "second player identifier should not be first player" if second_player.first_player?
+end
+
+run_test("Identifier transformation methods return self when appropriate") do
+  normal_identifier = Sashite::Qpi::Identifier.new("C", "K")
+  enhanced_identifier = Sashite::Qpi::Identifier.new("C", "+K")
+  diminished_identifier = Sashite::Qpi::Identifier.new("C", "-K")
 
   # Test methods that should return self
-  raise "normalize on normal actor should return self" unless normal_actor.normalize.equal?(normal_actor)
-  raise "enhance on enhanced actor should return self" unless enhanced_actor.enhance.equal?(enhanced_actor)
-  raise "diminish on diminished actor should return self" unless diminished_actor.diminish.equal?(diminished_actor)
-
-  # Test with_* methods that should return self
-  raise "with_name with same name should return self" unless normal_actor.with_name(:Chess).equal?(normal_actor)
-  raise "with_type with same type should return self" unless normal_actor.with_type(:K).equal?(normal_actor)
-  raise "with_side with same side should return self" unless normal_actor.with_side(:first).equal?(normal_actor)
-  raise "with_state with same state should return self" unless normal_actor.with_state(:normal).equal?(normal_actor)
+  raise "with_type with same type should return self" unless normal_identifier.with_type(:K).equal?(normal_identifier)
+  raise "with_style with same style should return self" unless normal_identifier.with_style(:C).equal?(normal_identifier)
+  raise "enhance on enhanced identifier should return self" unless enhanced_identifier.enhance.equal?(enhanced_identifier)
+  raise "diminish on diminished identifier should return self" unless diminished_identifier.diminish.equal?(diminished_identifier)
+  raise "normalize on normal identifier should return self" unless normal_identifier.normalize.equal?(normal_identifier)
 end
 
-run_test("Actor transformation chains") do
-  actor = Sashite::Gan::Actor.new(:Chess, :K, :first, :normal)
+run_test("Identifier transformation chains") do
+  identifier = Sashite::Qpi::Identifier.new("C", "K")
 
   # Test enhance then normalize
-  enhanced = actor.enhance
+  enhanced = identifier.enhance
   back_to_normal = enhanced.normalize
-  raise "enhance then normalize should equal original" unless back_to_normal == actor
-
-  # Test diminish then normalize
-  diminished = actor.diminish
-  back_to_normal2 = diminished.normalize
-  raise "diminish then normalize should equal original" unless back_to_normal2 == actor
+  raise "enhance then normalize should equal original" unless back_to_normal == identifier
 
   # Test complex chain
-  transformed = actor.flip.enhance.with_name(:Shogi).diminish
-  raise "complex chain should work" unless transformed.to_s == "shogi:-k"
-  raise "original should be unchanged" unless actor.to_s == "CHESS:K"
+  transformed = identifier.flip_side.with_style(:S).enhance.with_type(:Q)
+  raise "complex chain should work" unless transformed.to_s == "s:+q"
+  raise "original should be unchanged" unless identifier.to_s == "C:K"
 end
 
-run_test("Actor error handling for invalid symbols") do
-  # Invalid names
-  invalid_names = [:invalid, :chess, :CHESS, "Chess", 1, nil]
+run_test("Identifier error handling for invalid components") do
+  # Invalid SIN components
+  invalid_sins = ["", "CC", "Chess", "1", "!"]
 
-  invalid_names.each do |name|
+  invalid_sins.each do |sin|
     begin
-      Sashite::Gan::Actor.new(name, :K, :first, :normal)
-      raise "Should have raised error for invalid name #{name.inspect}"
+      Sashite::Qpi::Identifier.new(sin, "K")
+      raise "Should have raised error for invalid SIN #{sin.inspect}"
     rescue ArgumentError => e
-      raise "Error message should mention invalid name" unless e.message.include?("Name must be")
+      raise "Error message should mention invalid SIN" unless e.message.include?("Invalid SIN")
     end
   end
 
-  # Invalid types
-  invalid_types = [:invalid, :k, :"1", :AA, "K", 1, nil]
+  # Invalid PIN components
+  invalid_pins = ["", "KK", "++K", "Chess", "1"]
 
-  invalid_types.each do |type|
+  invalid_pins.each do |pin|
     begin
-      Sashite::Gan::Actor.new(:Chess, type, :first, :normal)
-      raise "Should have raised error for invalid type #{type.inspect}"
+      Sashite::Qpi::Identifier.new("C", pin)
+      raise "Should have raised error for invalid PIN #{pin.inspect}"
     rescue ArgumentError => e
-      raise "Error message should mention invalid type" unless e.message.include?("Type must be")
-    end
-  end
-
-  # Invalid sides
-  invalid_sides = [:invalid, :player1, :white, "first", 1, nil]
-
-  invalid_sides.each do |side|
-    begin
-      Sashite::Gan::Actor.new(:Chess, :K, side, :normal)
-      raise "Should have raised error for invalid side #{side.inspect}"
-    rescue ArgumentError => e
-      raise "Error message should mention invalid side" unless e.message.include?("Side must be")
-    end
-  end
-
-  # Invalid states
-  invalid_states = [:invalid, :promoted, :active, "normal", 1, nil]
-
-  invalid_states.each do |state|
-    begin
-      Sashite::Gan::Actor.new(:Chess, :K, :first, state)
-      raise "Should have raised error for invalid state #{state.inspect}"
-    rescue ArgumentError => e
-      raise "Error message should mention invalid state" unless e.message.include?("State must be")
+      raise "Error message should mention invalid PIN" unless e.message.include?("Invalid PIN")
     end
   end
 end
 
-run_test("Actor error handling for invalid GAN strings") do
-  # Invalid GAN strings
-  invalid_gans = ["", "CHESS", "Chess:K", "CHESS:k", nil, :symbol]
+run_test("Identifier error handling for semantic mismatches") do
+  # SIN and PIN with different sides
+  semantic_mismatches = [
+    ["C", "k"], # First player style, second player piece
+    ["c", "K"], # Second player style, first player piece
+    ["S", "+r"], # First player style, second player piece
+    ["s", "+R"]  # Second player style, first player piece
+  ]
 
-  invalid_gans.each do |gan|
+  semantic_mismatches.each do |sin_str, pin_str|
     begin
-      Sashite::Gan.parse(gan)
-      raise "Should have raised error for #{gan.inspect}"
+      Sashite::Qpi::Identifier.new(sin_str, pin_str)
+      raise "Should have raised error for semantic mismatch #{sin_str}:#{pin_str}"
     rescue ArgumentError => e
-      raise "Error message should mention invalid GAN or case mismatch" unless e.message.include?("Invalid GAN") || e.message.include?("Case mismatch")
+      raise "Error message should mention semantic mismatch" unless e.message.include?("must represent the same player side")
     end
   end
 end
 
-# Test case consistency validation
-run_test("Case consistency validation") do
-  # Valid case combinations
-  valid_cases = [
-    "CHESS:K", "chess:k", "SHOGI:+P", "shogi:-p", "XIANGQI:G", "xiangqi:g"
-  ]
+run_test("Identifier error handling for invalid QPI strings") do
+  # Invalid QPI strings
+  invalid_qpis = ["", "C", "K", "Chess", "C:k", "c:K", "CC:K", "C:KK", nil]
 
-  valid_cases.each do |gan|
-    raise "#{gan.inspect} should be valid (case consistent)" unless Sashite::Gan.valid?(gan)
-  end
-
-  # Invalid case combinations
-  invalid_cases = [
-    "CHESS:k", "chess:K", "SHOGI:+p", "shogi:-P", "XIANGQI:g", "xiangqi:G"
-  ]
-
-  invalid_cases.each do |gan|
-    raise "#{gan.inspect} should be invalid (case mismatch)" if Sashite::Gan.valid?(gan)
+  invalid_qpis.each do |qpi|
+    begin
+      Sashite::Qpi.parse(qpi) if qpi
+      raise "Should have raised error for #{qpi.inspect}" unless qpi.nil?
+    rescue ArgumentError
+      # Expected for invalid inputs
+    rescue TypeError
+      # Expected for nil input
+    end
   end
 end
 
-# Test component extraction and reconstruction
-run_test("Component extraction and reconstruction") do
-  test_cases = [
-    "CHESS:K", "chess:k", "SHOGI:+P", "xiangqi:-g"
-  ]
+# Test semantic validation with module methods
+run_test("Module methods validate semantic consistency") do
+  # Valid semantic combinations
+  valid_combinations = ["C:K", "c:k", "S:+R", "s:-p"]
+  valid_combinations.each do |qpi|
+    raise "#{qpi} should be valid" unless Sashite::Qpi.valid?(qpi)
+  end
 
-  test_cases.each do |gan_string|
-    actor = Sashite::Gan.parse(gan_string)
-
-    # Extract components
-    snn_part = actor.to_snn
-    pin_part = actor.to_pin
-
-    # Reconstruct
-    reconstructed = "#{snn_part}:#{pin_part}"
-
-    raise "#{gan_string}: reconstruction failed" unless reconstructed == gan_string
-
-    # Parse reconstructed string
-    reparsed = Sashite::Gan.parse(reconstructed)
-
-    raise "#{gan_string}: reparsed actor should equal original" unless reparsed == actor
+  # Invalid semantic combinations
+  invalid_combinations = ["C:k", "c:K", "S:+r", "s:-P"]
+  invalid_combinations.each do |qpi|
+    raise "#{qpi} should be invalid" if Sashite::Qpi.valid?(qpi)
   end
 end
 
-# Test game-specific examples
-run_test("Chess style actors") do
-  # Standard chess
-  chess = Sashite::Gan.actor(:Chess, :K, :first, :normal)
-  raise "Chess should be first player" unless chess.first_player?
-  raise "Chess name should be :Chess" unless chess.name == :Chess
-  raise "Chess GAN should be CHESS:K" unless chess.to_s == "CHESS:K"
+# Test cross-style scenarios
+run_test("Cross-style identifier scenarios") do
+  chess_white = Sashite::Qpi.parse("C:K")
+  chess_black = Sashite::Qpi.parse("c:k")
+  shogi_white = Sashite::Qpi.parse("S:K")
+  shogi_black = Sashite::Qpi.parse("s:k")
 
-  # Chess variants
-  chess960 = Sashite::Gan.actor(:Chess960, :K, :first, :normal)
-  raise "Chess960 name should be :Chess960" unless chess960.name == :Chess960
-  raise "Chess960 GAN should be CHESS960:K" unless chess960.to_s == "CHESS960:K"
+  # Same style comparisons
+  raise "Chess pieces should be same style" unless chess_white.same_style?(chess_black)
+  raise "Shogi pieces should be same style" unless shogi_white.same_style?(shogi_black)
 
-  koth = Sashite::Gan.actor(:Koth, :K, :first, :normal)
-  raise "KOTH name should be :Koth" unless koth.name == :Koth
-  raise "KOTH GAN should be KOTH:K" unless koth.to_s == "KOTH:K"
+  # Cross style comparisons
+  raise "Chess and Shogi should be cross style" unless chess_white.cross_style?(shogi_white)
+  raise "Chess and Shogi should be cross style" unless chess_black.cross_style?(shogi_black)
+  raise "Chess and Shogi should be cross style" unless chess_white.cross_style?(shogi_black)
+  raise "Chess and Shogi should be cross style" unless chess_black.cross_style?(shogi_white)
 end
 
-run_test("Shōgi style actors") do
-  # Standard shōgi
-  shogi = Sashite::Gan.actor(:Shogi, :K, :first, :normal)
-  raise "Shogi should be first player" unless shogi.first_player?
-  raise "Shogi name should be :Shogi" unless shogi.name == :Shogi
-  raise "Shogi GAN should be SHOGI:K" unless shogi.to_s == "SHOGI:K"
+# Test valid? method consistency
+run_test("Identifier valid? method consistency") do
+  # Valid identifiers should return true
+  valid_identifier = Sashite::Qpi::Identifier.new("C", "K")
+  raise "valid identifier should return true for valid?" unless valid_identifier.valid?
 
-  # Promoted pieces
-  promoted_pawn = Sashite::Gan.actor(:Shogi, :P, :first, :enhanced)
-  raise "Promoted pawn should be enhanced" unless promoted_pawn.enhanced?
-  raise "Promoted pawn GAN should be SHOGI:+P" unless promoted_pawn.to_s == "SHOGI:+P"
+  # Create identifiers that would be semantically inconsistent if constructed directly
+  # Since constructor validates, we'll test the valid? method logic
+  identifier = Sashite::Qpi::Identifier.new("C", "K")
+  raise "semantic consistency should be true" unless identifier.valid?
 end
 
-run_test("Cross-style actor transformations") do
-  # Test that actors can be transformed across different contexts
-  actor = Sashite::Gan.actor(:Chess, :K, :first, :normal)
+# Test edge cases with all letters
+run_test("All 26 ASCII letters work correctly in QPI") do
+  letters = ("A".."Z").to_a
 
-  # Chain transformations
-  transformed = actor.flip.with_name(:Shogi).flip.with_name(:Xiangqi)
-  expected_final = "XIANGQI:K"  # Should end up as first player Xiangqi
+  letters.each do |letter|
+    # Test first player
+    qpi1 = "#{letter}:#{letter}"
+    identifier1 = Sashite::Qpi.parse(qpi1)
+    raise "#{letter} first player should parse correctly" unless identifier1.style.to_s == letter
 
-  raise "Chained transformation should work" unless transformed.to_s == expected_final
-  raise "Original actor should be unchanged" unless actor.to_s == "CHESS:K"
-end
+    # Test second player
+    qpi2 = "#{letter.downcase}:#{letter.downcase}"
+    identifier2 = Sashite::Qpi.parse(qpi2)
+    raise "#{letter.downcase} second player should parse correctly" unless identifier2.style.to_s == letter.downcase
 
-# Test practical usage scenarios
-run_test("Practical usage - actor collections") do
-  actors = [
-    Sashite::Gan.actor(:Chess, :K, :first, :normal),
-    Sashite::Gan.actor(:Shogi, :K, :first, :normal),
-    Sashite::Gan.actor(:Chess, :Q, :first, :enhanced),
-    Sashite::Gan.actor(:Chess, :K, :second, :normal)
-  ]
+    # Test same style
+    raise "#{letter} pieces should be same style" unless identifier1.same_style?(identifier2)
 
-  # Filter by side
-  first_player_actors = actors.select(&:first_player?)
-  raise "Should have 3 first player actors" unless first_player_actors.size == 3
-
-  # Group by name
-  by_name = actors.group_by(&:name)
-  raise "Should have chess actors grouped" unless by_name[:Chess].size == 3
-
-  # Find specific actors
-  chess_actors = actors.select { |a| a.name == :Chess }
-  raise "Should have 3 chess actors" unless chess_actors.size == 3
-
-  # Group by component strings
-  by_snn = actors.group_by(&:to_snn)
-  by_pin = actors.group_by(&:to_pin)
-
-  raise "Should have CHESS and SHOGI styles" unless by_snn.key?("CHESS") && by_snn.key?("SHOGI")
-  raise "Should have different PIN representations" unless by_pin.size > 1
-end
-
-run_test("Practical usage - game configuration") do
-  # Simulate multi-style match setup
-  white_style = Sashite::Gan.actor(:Chess, :K, :first, :normal)
-  black_style = Sashite::Gan.actor(:Shogi, :K, :second, :normal)
-
-  raise "White should be first player" unless white_style.first_player?
-  raise "Black should be second player" unless black_style.second_player?
-  raise "Styles should have different names" unless white_style.name != black_style.name
-  raise "Styles should have different sides" unless !white_style.same_side?(black_style)
-
-  # Test style switching
-  switched = white_style.with_name(black_style.name)
-  raise "Switched actor should have black's name" unless switched.name == black_style.name
-  raise "Switched actor should keep white's side" unless switched.side == white_style.side
-end
-
-# Test edge cases
-run_test("Edge case - alphanumeric identifiers") do
-  alphanumeric_actors = [
-    [:Chess960, :A, :first, :normal, "CHESS960:A"],
-    [:A1, :Z, :second, :enhanced, "a1:+z"],
-    [:Game123, :B, :first, :diminished, "GAME123:-B"]
-  ]
-
-  alphanumeric_actors.each do |name_symbol, type, side, state, expected_gan|
-    actor = Sashite::Gan.actor(name_symbol, type, side, state)
-    raise "#{name_symbol} should create valid actor" unless actor.name == name_symbol
-    raise "#{name_symbol} should have correct type" unless actor.type == type
-    raise "#{name_symbol} should have correct side" unless actor.side == side
-    raise "#{name_symbol} should have correct state" unless actor.state == state
-    raise "#{name_symbol} should display as #{expected_gan}" unless actor.to_s == expected_gan
-
-    # Test component extraction
-    raise "#{name_symbol} to_snn should work" unless actor.to_snn.length > 0
-    raise "#{name_symbol} to_pin should work" unless actor.to_pin.length > 0
+    # Test different sides
+    raise "#{letter} pieces should be different sides" if identifier1.same_side?(identifier2)
   end
-end
-
-run_test("Edge case - name normalization from various input cases") do
-  test_cases = [
-    ["CHESS:K", :Chess],
-    ["chess:k", :Chess],
-    ["SHOGI:P", :Shogi],
-    ["shogi:p", :Shogi],
-    ["XIANGQI:G", :Xiangqi],
-    ["xiangqi:g", :Xiangqi]
-  ]
-
-  test_cases.each do |input, expected_name|
-    actor = Sashite::Gan.parse(input)
-    raise "#{input} should normalize to #{expected_name}" unless actor.name == expected_name
-  end
-end
-
-run_test("Edge case - unicode and special characters still invalid") do
-  unicode_chars = ["α:α", "β:β", "♕:♔", "🀄:🀄", "象:將", "CHESS:♕"]
-
-  unicode_chars.each do |char|
-    raise "#{char.inspect} should be invalid (not ASCII)" if Sashite::Gan.valid?(char)
-  end
-end
-
-run_test("Edge case - whitespace handling still works") do
-  whitespace_cases = [
-    " CHESS:K", "CHESS:K ", " chess:k", "chess:k ",
-    "\tCHESS:K", "CHESS:K\t", "\nchess:k", "chess:k\n", " CHESS:K ", "\tchess:k\t",
-    "CHESS: K", "CHESS :K", " CHESS : K "
-  ]
-
-  whitespace_cases.each do |gan|
-    raise "#{gan.inspect} should be invalid (whitespace)" if Sashite::Gan.valid?(gan)
-  end
-end
-
-run_test("Edge case - mixed case still invalid") do
-  mixed_cases = ["Chess:K", "CHESS:k", "chess:K", "ChEsS:K", "CHESS:ChEsS"]
-
-  mixed_cases.each do |gan|
-    raise "#{gan.inspect} should be invalid (mixed case)" if Sashite::Gan.valid?(gan)
-  end
-end
-
-run_test("Edge case - malformed separators") do
-  malformed_separators = [
-    "CHESS::K", "CHESS:::K", "CHESS", ":K", "CHESS:",
-    "CHESS;K", "CHESS K", "CHESS.K", "CHESS|K"
-  ]
-
-  malformed_separators.each do |gan|
-    raise "#{gan.inspect} should be invalid (malformed separator)" if Sashite::Gan.valid?(gan)
-  end
-end
-
-# Test component delegation
-run_test("Component validation delegates to SNN and PIN") do
-  # Test that GAN validation uses the same patterns as individual components
-  test_cases = [
-    ["CHESS", "K"],
-    ["chess", "k"],
-    ["SHOGI", "+P"],
-    ["xiangqi", "-g"]
-  ]
-
-  test_cases.each do |snn_part, pin_part|
-    # Individual components should be valid
-    raise "#{snn_part} should be valid SNN" unless Sashite::Snn.valid?(snn_part)
-    raise "#{pin_part} should be valid PIN" unless Sashite::Pin.valid?(pin_part)
-
-    # Combined GAN should be valid
-    gan_string = "#{snn_part}:#{pin_part}"
-    raise "#{gan_string} should be valid GAN" unless Sashite::Gan.valid?(gan_string)
-
-    # Invalid individual components should make GAN invalid
-    invalid_snn = "#{snn_part}Invalid"
-    invalid_pin = "#{pin_part}Invalid"
-
-    raise "#{invalid_snn}:#{pin_part} should be invalid (bad SNN)" if Sashite::Gan.valid?("#{invalid_snn}:#{pin_part}")
-    raise "#{snn_part}:#{invalid_pin} should be invalid (bad PIN)" if Sashite::Gan.valid?("#{snn_part}:#{invalid_pin}")
-  end
-end
-
-# Test constants
-run_test("Actor class constants are properly defined") do
-  actor_class = Sashite::Gan::Actor
-
-  # Test separator constant
-  raise "SEPARATOR should be ':'" unless actor_class::SEPARATOR == ":"
-
-  # Test side constants
-  raise "FIRST_PLAYER should be :first" unless actor_class::FIRST_PLAYER == :first
-  raise "SECOND_PLAYER should be :second" unless actor_class::SECOND_PLAYER == :second
-
-  # Test state constants
-  raise "NORMAL_STATE should be :normal" unless actor_class::NORMAL_STATE == :normal
-  raise "ENHANCED_STATE should be :enhanced" unless actor_class::ENHANCED_STATE == :enhanced
-  raise "DIMINISHED_STATE should be :diminished" unless actor_class::DIMINISHED_STATE == :diminished
-
-  # Test valid arrays
-  raise "VALID_SIDES should contain correct values" unless actor_class::VALID_SIDES == [:first, :second]
-  raise "VALID_STATES should contain correct values" unless actor_class::VALID_STATES == [:normal, :enhanced, :diminished]
-  raise "VALID_TYPES should contain A-Z" unless actor_class::VALID_TYPES.first == :A && actor_class::VALID_TYPES.last == :Z
 end
 
 # Test roundtrip parsing
 run_test("Roundtrip parsing consistency") do
   test_cases = [
-    [:Chess, :K, :first, :normal],
-    [:Shogi, :P, :second, :enhanced],
-    [:Xiangqi, :G, :first, :diminished],
-    [:Chess960, :Q, :second, :normal]
+    ["C", "K"],
+    ["c", "k"],
+    ["S", "+R"],
+    ["s", "-p"],
+    ["X", "+G"],
+    ["m", "-m"]
   ]
 
-  test_cases.each do |name, type, side, state|
-    # Create actor -> to_s -> parse -> compare
-    original = Sashite::Gan::Actor.new(name, type, side, state)
-    gan_string = original.to_s
-    parsed = Sashite::Gan.parse(gan_string)
+  test_cases.each do |sin_str, pin_str|
+    # Create identifier -> to_s -> parse -> compare
+    original = Sashite::Qpi::Identifier.new(sin_str, pin_str)
+    qpi_string = original.to_s
+    parsed = Sashite::Qpi.parse(qpi_string)
 
     raise "Roundtrip failed: original != parsed" unless original == parsed
-    raise "Roundtrip failed: different name" unless original.name == parsed.name
-    raise "Roundtrip failed: different type" unless original.type == parsed.type
-    raise "Roundtrip failed: different side" unless original.side == parsed.side
-    raise "Roundtrip failed: different state" unless original.state == parsed.state
-
-    # Test component extraction roundtrip
-    snn_component = original.to_snn
-    pin_component = original.to_pin
-    reconstructed = "#{snn_component}:#{pin_component}"
-
-    raise "Component roundtrip failed" unless reconstructed == gan_string
+    raise "Roundtrip failed: different sin" unless original.sin == parsed.sin
+    raise "Roundtrip failed: different pin" unless original.pin == parsed.pin
+    raise "Roundtrip failed: different components" unless original.to_sin == parsed.to_sin && original.to_pin == parsed.to_pin
   end
 end
 
-# Test name capitalization normalization
-run_test("Name capitalization normalization") do
-  test_cases = [
-    # Input cases that should all normalize to the same symbol
-    [["CHESS:K", "chess:k"], :Chess],
-    [["SHOGI:P", "shogi:p"], :Shogi],
-    [["XIANGQI:G", "xiangqi:g"], :Xiangqi],
-    [["CHESS960:K", "chess960:k"], :Chess960],
-    [["KOTH:Q", "koth:q"], :Koth]
-  ]
-
-  test_cases.each do |inputs, expected_name|
-    parsed_actors = inputs.map { |input| Sashite::Gan.parse(input) }
-
-    # All should have the same normalized name
-    parsed_actors.each do |actor|
-      raise "#{inputs.inspect} should normalize to #{expected_name}, got #{actor.name}" unless actor.name == expected_name
-    end
-
-    # But different sides
-    raise "First input should be first player" unless parsed_actors[0].first_player?
-    raise "Second input should be second player" unless parsed_actors[1].second_player?
-  end
-end
-
-# Test performance with moderate load
+# Test performance
 run_test("Performance - repeated operations") do
   # Test performance with many repeated calls
   1000.times do
-    actor = Sashite::Gan.actor(:Chess, :K, :first, :normal)
-    enhanced = actor.enhance
-    flipped = actor.flip
-    shogi = actor.with_name(:Shogi)
+    identifier = Sashite::Qpi.identifier("C", "K")
+    enhanced = identifier.enhance
+    flipped = identifier.flip_side
+    different_style = identifier.with_style(:S)
 
-    raise "Performance test failed" unless Sashite::Gan.valid?("CHESS:K")
+    raise "Performance test failed" unless Sashite::Qpi.valid?("C:K")
     raise "Performance test failed" unless enhanced.enhanced?
     raise "Performance test failed" unless flipped.second_player?
-    raise "Performance test failed" unless shogi.name == :Shogi
+    raise "Performance test failed" unless different_style.style == :S
   end
 end
 
-# Test comprehensive validation scenarios
-run_test("Comprehensive validation scenarios") do
-  # Test various valid formats
-  valid_formats = [
-    "A:A", "Z:Z", "a:a", "z:z",
-    "CHESS:K", "chess:k", "SHOGI:P", "shogi:p",
-    "CHESS:+K", "chess:+k", "SHOGI:-P", "shogi:-p",
-    "CHESS960:K", "chess960:k", "A1B2C3:Z", "a1b2c3:z"
-  ]
+# Test constants
+run_test("Identifier class constants are properly defined") do
+  identifier_class = Sashite::Qpi::Identifier
 
-  valid_formats.each do |gan|
-    raise "#{gan} should be valid" unless Sashite::Gan.valid?(gan)
-    raise "#{gan} should be parseable" unless Sashite::Gan.parse(gan)
-  end
-
-  # Test various invalid formats
-  invalid_formats = [
-    "", ":", "CHESS", ":K", "CHESS:",
-    "Chess:K", "CHESS:k", "chess:K",
-    "CHESS:KK", "CHESS::K", "CHESS:::K",
-    "123:K", "CHESS:123", "!:K", "CHESS:!",
-    "CHESS:++K", "CHESS:--K", "CHESS:+-K"
-  ]
-
-  invalid_formats.each do |gan|
-    raise "#{gan} should be invalid" if Sashite::Gan.valid?(gan)
-  end
-end
-
-# Test integration with SNN and PIN libraries
-run_test("Integration with SNN and PIN libraries") do
-  # Test that GAN actors correctly wrap SNN and PIN objects
-  actor = Sashite::Gan.parse("CHESS:+K")
-
-  # Test that internal components work as expected
-  raise "Actor should have correct SNN representation" unless actor.to_snn == "CHESS"
-  raise "Actor should have correct PIN representation" unless actor.to_pin == "+K"
-
-  # Test that transformations affect both components correctly
-  flipped = actor.flip
-  raise "Flipped actor should have lowercase SNN" unless flipped.to_snn == "chess"
-  raise "Flipped actor should have lowercase PIN" unless flipped.to_pin == "+k"
-
-  # Test that state changes affect only PIN component
-  normalized = actor.normalize
-  raise "Normalized actor should keep same SNN" unless normalized.to_snn == "CHESS"
-  raise "Normalized actor should have modified PIN" unless normalized.to_pin == "K"
-
-  # Test that name changes affect only SNN component
-  renamed = actor.with_name(:Shogi)
-  raise "Renamed actor should have different SNN" unless renamed.to_snn == "SHOGI"
-  raise "Renamed actor should keep same PIN" unless renamed.to_pin == "+K"
-end
-
-# Test error propagation from components
-run_test("Error propagation from SNN and PIN components") do
-  # Test that SNN errors are properly propagated
-  begin
-    Sashite::Gan.parse("Chess:K")  # Mixed case in SNN
-    raise "Should have raised error for mixed case SNN"
-  rescue ArgumentError => e
-    raise "Should propagate SNN-related error" unless e.message.include?("Case mismatch") || e.message.include?("Invalid")
-  end
-
-  # Test that PIN errors are properly propagated
-  begin
-    Sashite::Gan.parse("CHESS:++K")  # Invalid PIN
-    raise "Should have raised error for invalid PIN"
-  rescue ArgumentError => e
-    raise "Should propagate PIN-related error" unless e.message.include?("Invalid")
-  end
-
-  # Test that case mismatch errors are properly raised
-  begin
-    Sashite::Gan.parse("CHESS:k")  # Case mismatch
-    raise "Should have raised error for case mismatch"
-  rescue ArgumentError => e
-    raise "Should raise case mismatch error" unless e.message.include?("Case mismatch")
-  end
-end
-
-# Test boundary conditions
-run_test("Boundary conditions") do
-  # Test minimum valid identifiers
-  min_valid = ["A:A", "a:a", "Z:Z", "z:z"]
-  min_valid.each do |gan|
-    raise "#{gan} should be valid (minimum)" unless Sashite::Gan.valid?(gan)
-  end
-
-  # Test maximum reasonable identifiers
-  long_identifier = "A" + "B" * 50  # Long but valid identifier
-  max_valid = ["#{long_identifier}:A", "#{long_identifier.downcase}:a"]
-  max_valid.each do |gan|
-    raise "#{gan} should be valid (long identifier)" unless Sashite::Gan.valid?(gan)
-  end
-
-  # Test with all piece types
-  all_types = ("A".."Z").to_a
-  all_types.each do |type|
-    gan_upper = "CHESS:#{type}"
-    gan_lower = "chess:#{type.downcase}"
-
-    raise "#{gan_upper} should be valid" unless Sashite::Gan.valid?(gan_upper)
-    raise "#{gan_lower} should be valid" unless Sashite::Gan.valid?(gan_lower)
-  end
+  # Test separator
+  raise "SEPARATOR should be ':'" unless identifier_class::SEPARATOR == ":"
 end
 
 puts
-puts "All GAN tests passed!"
+puts "All QPI tests passed!"
 puts

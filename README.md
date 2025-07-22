@@ -1,683 +1,717 @@
-# Gan.rb
+# Qpi.rb
 
-[![Version](https://img.shields.io/github/v/tag/sashite/gan.rb?label=Version&logo=github)](https://github.com/sashite/gan.rb/tags)
-[![Yard documentation](https://img.shields.io/badge/Yard-documentation-blue.svg?logo=github)](https://rubydoc.info/github/sashite/gan.rb/main)
-![Ruby](https://github.com/sashite/gan.rb/actions/workflows/main.yml/badge.svg?branch=main)
-[![License](https://img.shields.io/github/license/sashite/gan.rb?label=License&logo=github)](https://github.com/sashite/gan.rb/raw/main/LICENSE.md)
+[![Version](https://img.shields.io/github/v/tag/sashite/qpi.rb?label=Version&logo=github)](https://github.com/sashite/qpi.rb/tags)
+[![Yard documentation](https://img.shields.io/badge/Yard-documentation-blue.svg?logo=github)](https://rubydoc.info/github/sashite/qpi.rb/main)
+![Ruby](https://github.com/sashite/qpi.rb/actions/workflows/main.yml/badge.svg?branch=main)
+[![License](https://img.shields.io/github/license/sashite/qpi.rb?label=License&logo=github)](https://github.com/sashite/qpi.rb/raw/main/LICENSE.md)
 
-> **GAN** (General Actor Notation) implementation for the Ruby language.
+> **QPI** (Qualified Piece Identifier) implementation for the Ruby language.
 
-## What is GAN?
+## What is QPI?
 
-GAN (General Actor Notation) provides a rule-agnostic format for identifying game actors in abstract strategy board games by combining [Style Name Notation (SNN)](https://sashite.dev/specs/snn/1.0.0/) and [Piece Identifier Notation (PIN)](https://sashite.dev/specs/pin/1.0.0/) with a colon separator and consistent case encoding.
+QPI (Qualified Piece Identifier) provides a rule-agnostic format for identifying game pieces in abstract strategy board games by combining [Style Identifier Notation (SIN)](https://sashite.dev/specs/sin/1.0.0/) and [Piece Identifier Notation (PIN)](https://sashite.dev/specs/pin/1.0.0/) with a colon separator.
 
-GAN represents **all four fundamental piece attributes** from the [Game Protocol](https://sashite.dev/game-protocol/):
+QPI represents **all four fundamental piece attributes** from the [Sashité Protocol](https://sashite.dev/protocol/):
+
 - **Type** → PIN component (ASCII letter choice)
-- **Side** → Consistent case encoding across both SNN and PIN components
+- **Side** → PIN component (letter case)
 - **State** → PIN component (optional prefix modifier)
-- **Style** → SNN component (explicit style identifier)
+- **Style** → SIN component (style identifier)
 
-This gem implements the [GAN Specification v1.0.0](https://sashite.dev/specs/gan/1.0.0/), providing a modern Ruby interface with immutable actor objects and functional programming principles built upon the [sashite-snn](https://rubygems.org/gems/sashite-snn) and [sashite-pin](https://rubygems.org/gems/sashite-pin) gems.
+Unlike [Extended Piece Identifier Notation (EPIN)](https://sashite.dev/specs/epin/1.0.0/) which uses derivation markers, QPI explicitly names the style for unambiguous identification.
+
+This gem implements the [QPI Specification v1.0.0](https://sashite.dev/specs/qpi/1.0.0/), providing a modern Ruby interface with immutable identifier objects and functional programming principles.
 
 ## Installation
 
 ```ruby
 # In your Gemfile
-gem "sashite-gan"
+gem "sashite-qpi"
 ```
 
 Or install manually:
 
 ```sh
-gem install sashite-gan
+gem install sashite-qpi
 ```
 
 ## Usage
 
-```ruby
-require "sashite/gan"
+### Basic Operations
 
-# Parse GAN strings into actor objects
-actor = Sashite::Gan.parse("CHESS:K")          # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
-actor.to_s                                     # => "CHESS:K"
-actor.name                                     # => :Chess
-actor.type                                     # => :K
-actor.side                                     # => :first
-actor.state                                    # => :normal
+```ruby
+require "sashite/qpi"
+
+# Parse QPI strings into identifier objects
+identifier = Sashite::Qpi.parse("C:K")         # => #<Qpi::Identifier sin=:C pin=:K>
+identifier.to_s                                # => "C:K"
+identifier.sin                                 # => :C
+identifier.pin                                 # => :K
+identifier.style                               # => :C
+identifier.type                                # => :K
+identifier.side                                # => :first
+identifier.state                               # => :normal
+
+# Create identifiers directly
+identifier = Sashite::Qpi.identifier("C", "K")              # => #<Qpi::Identifier sin=:C pin=:K>
+identifier = Sashite::Qpi::Identifier.new("S", "+R")        # => #<Qpi::Identifier sin=:S pin=:+R>
+
+# Validate QPI strings
+Sashite::Qpi.valid?("C:K")                    # => true
+Sashite::Qpi.valid?("s:+p")                   # => true
+Sashite::Qpi.valid?("invalid")                # => false
+Sashite::Qpi.valid?("C:k")                    # => false (semantic mismatch)
+
+# Access all four piece attributes
+chess_king = Sashite::Qpi.parse("C:K")
+chess_king.type                                # => :K
+chess_king.side                                # => :first
+chess_king.state                               # => :normal
+chess_king.style                               # => :C
+
+shogi_promoted = Sashite::Qpi.parse("s:+r")
+shogi_promoted.type                            # => :R
+shogi_promoted.side                            # => :second
+shogi_promoted.state                           # => :enhanced
+shogi_promoted.style                           # => :s
 
 # Extract individual components
-actor.to_snn                                   # => "CHESS"
-actor.to_pin                                   # => "K"
+chess_king.to_sin                              # => "C"
+chess_king.to_pin                              # => "K"
+shogi_promoted.to_sin                          # => "s"
+shogi_promoted.to_pin                          # => "+r"
+```
 
-# Create actors directly
-actor = Sashite::Gan.actor(:Chess, :K, :first, :normal) # => #<Gan::Actor name=:Chess type=:K side=:first state=:normal>
-actor = Sashite::Gan::Actor.new(:Shogi, :P, :second, :enhanced) # => #<Gan::Actor name=:Shogi type=:P side=:second state=:enhanced>
+### Single-Style Games
 
-# Validate GAN strings
-Sashite::Gan.valid?("CHESS:K")                 # => true
-Sashite::Gan.valid?("shogi:+p")                # => true
-Sashite::Gan.valid?("Chess:K")                 # => false (mixed case)
-Sashite::Gan.valid?("CHESS")                   # => false (missing piece)
+```ruby
+# Western Chess
+white_king = Sashite::Qpi.parse("C:K")        # Chess king, first player
+black_queen = Sashite::Qpi.parse("c:q")       # Chess queen, second player
+castling_rook = Sashite::Qpi.parse("C:+R")    # Chess rook, castling eligible
 
-# Class-level validation (same as module method)
-Sashite::Gan::Actor.valid?("CHESS:K")          # => true
-Sashite::Gan::Actor.valid?("chess:k")          # => true
-Sashite::Gan::Actor.valid?("Chess:K")          # => false (mixed case)
-Sashite::Gan::Actor.valid?("CHESS:k")          # => false (case mismatch)
+# Japanese Shōgi
+sente_king = Sashite::Qpi.parse("S:K")        # Shōgi king, sente
+gote_promoted_rook = Sashite::Qpi.parse("s:+r") # Shōgi dragon king, gote
+promoted_pawn = Sashite::Qpi.parse("S:+P")    # Shōgi tokin, sente
 
-# State manipulation (returns new immutable instances)
-enhanced = actor.enhance                       # => #<Gan::Actor name=:Chess type=:K side=:first state=:enhanced>
-enhanced.to_s                                  # => "CHESS:+K"
-enhanced.to_pin                                # => "+K"
-diminished = actor.diminish                    # => #<Gan::Actor name=:Chess type=:K side=:first state=:diminished>
-diminished.to_s                                # => "CHESS:-K"
-diminished.to_pin                              # => "-K"
+# Chinese Xiangqi
+red_general = Sashite::Qpi.parse("X:G")       # Xiangqi general, red
+black_cannon = Sashite::Qpi.parse("x:c")      # Xiangqi cannon, black
+```
 
-# Side manipulation
-flipped = actor.flip                           # => #<Gan::Actor name=:Chess type=:K side=:second state=:normal>
-flipped.to_s                                   # => "chess:k"
-flipped.to_snn                                 # => "chess"
-flipped.to_pin                                 # => "k"
+### Cross-Style Scenarios
 
-# Style manipulation
-shogi_actor = actor.with_name(:Shogi)          # => #<Gan::Actor name=:Shogi type=:K side=:first state=:normal>
-shogi_actor.to_s                               # => "SHOGI:K"
-shogi_actor.to_snn                             # => "SHOGI"
+```ruby
+# Chess vs. Shōgi match
+chess_player = Sashite::Qpi.parse("C:K")      # First player uses Chess
+shogi_player = Sashite::Qpi.parse("s:k")      # Second player uses Shōgi
 
-# Type manipulation
-queen = actor.with_type(:Q)                    # => #<Gan::Actor name=:Chess type=:Q side=:first state=:normal>
-queen.to_s                                     # => "CHESS:Q"
-queen.to_pin                                   # => "Q"
+# Ōgi vs. Makruk match
+ogi_king = Sashite::Qpi.parse("O:K")          # First player uses Ōgi
+makruk_queen = Sashite::Qpi.parse("m:m")      # Second player uses Makruk
 
-# State queries
-actor.normal?                                  # => true
-enhanced.enhanced?                             # => true
-diminished.diminished?                         # => true
+# Verify cross-style combinations
+chess_player.cross_style?(shogi_player)       # => true
+chess_player.same_style?(shogi_player)        # => false
+```
 
-# Side queries
-actor.first_player?                            # => true
-flipped.second_player?                         # => true
+### Identifier Transformations
 
-# Component comparison
-chess1 = Sashite::Gan.parse("CHESS:K")
-chess2 = Sashite::Gan.parse("chess:k")
-shogi = Sashite::Gan.parse("SHOGI:K")
+```ruby
+# All transformations return new immutable instances
+identifier = Sashite::Qpi.parse("C:K")
 
-chess1.same_name?(chess2)                      # => true (both chess)
-chess1.same_side?(shogi)                       # => true (both first player)
-chess1.same_type?(chess2)                      # => true (both kings)
-chess1.same_name?(shogi)                       # => false (different styles)
+# Transform PIN component (piece attributes)
+enhanced = identifier.enhance                  # => "C:+K"
+different_type = identifier.with_type(:Q)     # => "C:Q"
+flipped_side = identifier.flip_side           # => "c:k"
 
-# Functional transformations can be chained
-black_promoted = Sashite::Gan.parse("CHESS:P").flip.enhance
-black_promoted.to_s                            # => "chess:+p"
-black_promoted.to_snn                          # => "chess"
-black_promoted.to_pin                          # => "+p"
+# Transform SIN component (style)
+different_style = identifier.with_style(:S)   # => "S:K"
+flipped_style = identifier.flip_style         # => "c:K"
+
+# Chain transformations
+result = identifier.flip_style.enhance.with_type(:Q)  # => "c:+Q"
+
+# Original identifier remains unchanged
+identifier.to_s                               # => "C:K"
+```
+
+### Component Extraction
+
+QPI provides methods to extract individual notation components:
+
+```ruby
+# Extract and manipulate components
+identifier = Sashite::Qpi.parse("S:+P")
+
+# Component extraction
+style_str = identifier.to_sin               # => "S"
+piece_str = identifier.to_pin               # => "+P"
+
+# Reconstruct from components
+reconstructed = "#{style_str}:#{piece_str}" # => "S:+P"
+
+# Cross-component analysis
+identifiers = [
+  Sashite::Qpi.parse("C:K"),
+  Sashite::Qpi.parse("S:K"),
+  Sashite::Qpi.parse("c:k")
+]
+
+# Group by style component
+by_style = identifiers.group_by(&:to_sin)
+# => {"C" => [...], "S" => [...], "c" => [...]}
+
+# Group by piece component
+by_piece = identifiers.group_by(&:to_pin)
+# => {"K" => [...], "k" => [...]}
+
+# Component-based filtering
+uppercase_styles = identifiers.select { |i| i.to_sin == i.to_sin.upcase }
+enhanced_pieces = identifiers.select { |i| i.to_pin.start_with?("+") }
+```
+
+### Validation and Constraints
+
+```ruby
+# Semantic validation - style and side must match
+Sashite::Qpi.valid?("C:K")                    # => true (first player Chess with first player piece)
+Sashite::Qpi.valid?("c:k")                    # => true (second player Chess with second player piece)
+Sashite::Qpi.valid?("C:k")                    # => false (first player Chess with second player piece)
+Sashite::Qpi.valid?("c:K")                    # => false (second player Chess with first player piece)
+
+# Syntactic validation
+Sashite::Qpi.valid?("C:")                     # => false (missing PIN)
+Sashite::Qpi.valid?(":K")                     # => false (missing SIN)
+Sashite::Qpi.valid?("CC:K")                   # => false (invalid SIN)
+Sashite::Qpi.valid?("C:KK")                   # => false (invalid PIN)
+```
+
+#### Modular Validation Architecture
+
+QPI validation delegates to the underlying components for maximum consistency:
+
+```ruby
+# QPI validation follows a three-step process:
+# 1. Component Splitting: QPI strings are split on the colon separator
+# 2. Individual Validation: Each component validated using its specific pattern:
+#    - SIN component: Uses Sashite::Sin::Identifier::SIN_PATTERN
+#    - PIN component: Uses Sashite::Pin::Identifier::PIN_PATTERN
+# 3. Cross-Reference Constraint: Ensures matching player assignment
+
+# This modular approach:
+# - Avoids Code Duplication: No separate QPI regex needed
+# - Maintains Consistency: Inherits validation improvements from SIN and PIN
+# - Provides Clear Error Messages: Component-specific failures are informative
+# - Enables Modularity: Each library maintains its own validation logic
+
+def demonstrate_validation_delegation
+  qpi_string = "C:+K"
+
+  # QPI splits and delegates validation
+  sin_part, pin_part = qpi_string.split(':')
+
+  sin_valid = Sashite::Sin.valid?(sin_part)    # => true
+  pin_valid = Sashite::Pin.valid?(pin_part)    # => true
+
+  # Plus semantic consistency check
+  sin_side = sin_part == sin_part.upcase ? :first : :second
+  pin_side = pin_part.match(/[A-Z]/) ? :first : :second
+  sides_match = sin_side == pin_side           # => true
+
+  overall_valid = sin_valid && pin_valid && sides_match
+
+  puts "SIN valid: #{sin_valid}, PIN valid: #{pin_valid}, Sides match: #{sides_match}"
+  puts "Overall valid: #{overall_valid}"
+end
 ```
 
 ## Format Specification
 
 ### Structure
 ```
-<snn>:<pin>
+<sin>:<pin>
 ```
 
-### Components
+### Grammar (BNF)
+```bnf
+<qpi> ::= <uppercase-qpi> | <lowercase-qpi>
 
-- **SNN Component** (Style Name Notation): Style identifier with case-based side encoding
-  - Uppercase: First player styles (`CHESS`, `SHOGI`, `XIANGQI`)
-  - Lowercase: Second player styles (`chess`, `shogi`, `xiangqi`)
-- **Colon Separator**: Literal `:` character
-- **PIN Component** (Piece Identifier Notation): Piece with optional state and case-based ownership
-  - Letter case matches SNN case (case consistency requirement)
-  - Optional state prefix: `+` (enhanced), `-` (diminished)
+<uppercase-qpi> ::= <uppercase-letter> <colon> <uppercase-pin>
+<lowercase-qpi> ::= <lowercase-letter> <colon> <lowercase-pin>
 
-### Case Consistency Requirement
+<colon> ::= ":"
 
-**Critical Rule**: The case of the SNN component must match the case of the PIN component:
+<uppercase-pin> ::= <uppercase-letter> | <state-modifier> <uppercase-letter>
+<lowercase-pin> ::= <lowercase-letter> | <state-modifier> <lowercase-letter>
 
+<state-modifier> ::= "+" | "-"
+<uppercase-letter> ::= "A" | "B" | "C" | ... | "Z"
+<lowercase-letter> ::= "a" | "b" | "c" | ... | "z"
+```
+
+### Regular Expression
 ```ruby
-# ✅ Valid combinations
-Sashite::Gan.valid?("CHESS:K")     # => true (both uppercase = first player)
-Sashite::Gan.valid?("chess:k")     # => true (both lowercase = second player)
-Sashite::Gan.valid?("SHOGI:+R")    # => true (both uppercase = first player)
-Sashite::Gan.valid?("xiangqi:-g")  # => true (both lowercase = second player)
-
-# ❌ Invalid combinations
-Sashite::Gan.valid?("CHESS:k")     # => false (case mismatch)
-Sashite::Gan.valid?("chess:K")     # => false (case mismatch)
-Sashite::Gan.valid?("SHOGI:+r")    # => false (case mismatch)
+/\A([A-Z]:[-+]?[A-Z]|[a-z]:[-+]?[a-z])\z/
 ```
 
-### Validation Architecture
+### Component Mapping
 
-GAN validation delegates to the underlying components for maximum consistency:
-- **SNN validation**: Uses `Sashite::Snn::Style::SNN_PATTERN` for style validation
-- **PIN validation**: Uses `Sashite::Pin::Piece::PIN_PATTERN` for piece validation
-- **Case consistency**: Ensures matching case between SNN and PIN components
-
-This modular approach avoids code duplication and ensures that GAN validation automatically inherits improvements from the underlying SNN and PIN libraries.
-
-### Examples
-- `CHESS:K` - First player chess king
-- `chess:k` - Second player chess king
-- `SHOGI:+P` - First player enhanced shōgi pawn
-- `xiangqi:-g` - Second player diminished xiangqi general
-
-## Game Examples
-
-### Traditional Same-Style Games
-
-In traditional games where both players use the same piece style:
-
-```ruby
-# Chess pieces
-white_king = Sashite::Gan.parse("CHESS:K")
-black_king = Sashite::Gan.parse("chess:k")
-white_queen = Sashite::Gan.parse("CHESS:Q")
-black_queen = Sashite::Gan.parse("chess:q")
-
-# Shōgi pieces
-sente_king = Sashite::Gan.parse("SHOGI:K")
-gote_king = Sashite::Gan.parse("shogi:k")
-sente_gold = Sashite::Gan.parse("SHOGI:G")
-gote_gold = Sashite::Gan.parse("shogi:g")
-
-# Enhanced states for special conditions
-castling_rook = Sashite::Gan.parse("CHESS:+R") # Castling-eligible rook
-vulnerable_pawn = Sashite::Gan.parse("CHESS:-P")   # En passant vulnerable pawn
-promoted_pawn = Sashite::Gan.parse("SHOGI:+P")     # Tokin (promoted pawn)
-```
-
-### Cross-Style Games
-
-GAN's explicit style naming enables games where players use different piece traditions:
-
-```ruby
-# Chess vs Shōgi
-chess_king = Sashite::Gan.parse("CHESS:K")
-shogi_king = Sashite::Gan.parse("shogi:k")
-
-# Makruk vs Xiangqi
-makruk_queen = Sashite::Gan.parse("MAKRUK:M") # Met (Makruk queen)
-xiangqi_general = Sashite::Gan.parse("xiangqi:g") # Xiangqi general
-
-# Multi-tradition setup
-def create_cross_style_game
-  [
-    Sashite::Gan.parse("CHESS:K"),     # First player uses chess
-    Sashite::Gan.parse("CHESS:Q"),
-    Sashite::Gan.parse("shogi:k"),     # Second player uses shōgi
-    Sashite::Gan.parse("shogi:g")
-  ]
-end
-```
-
-### Capture Mechanics Examples
-
-GAN can represent the different capture mechanics described in the specification:
-
-```ruby
-# Chess vs Chess (traditional capture)
-def chess_capture(captured_piece)
-  # In chess, captured pieces retain their identity but become inactive
-  captured_piece # GAN remains unchanged: chess:p stays chess:p
-end
-
-# Shōgi vs Shōgi (side-changing capture)
-def shogi_capture(captured_piece)
-  # In shōgi, captured pieces change sides and lose promotions
-  captured_piece.flip.normalize # shogi:+p becomes SHOGI:P
-end
-
-# Cross-style capture (style transformation)
-def cross_style_capture(captured_piece, capturing_style)
-  # Captured piece transforms to capturing player's style
-  captured_piece.flip.with_name(capturing_style).normalize
-  # chess:q captured by Ōgi player becomes OGI:P
-end
-```
+| Piece Attribute | QPI Encoding | Examples |
+|-------------------|--------------|----------|
+| **Type** | PIN letter choice | `C:K` = King, `C:P` = Pawn |
+| **Side** | PIN case | `C:K` = First player, `c:k` = Second player |
+| **State** | PIN prefix modifier | `S:+P` = Enhanced, `C:-P` = Diminished |
+| **Style** | SIN identifier | `C:K` = Chess style, `S:K` = Shōgi style |
 
 ## API Reference
 
 ### Main Module Methods
 
-- `Sashite::Gan.valid?(gan_string)` - Check if string is valid GAN notation
-- `Sashite::Gan.parse(gan_string)` - Parse GAN string into Actor object
-- `Sashite::Gan.actor(name, type, side, state = :normal)` - Create actor instance directly
+- `Sashite::Qpi.valid?(qpi_string)` - Check if string is valid QPI notation
+- `Sashite::Qpi.parse(qpi_string)` - Parse QPI string into Identifier object
+- `Sashite::Qpi.identifier(sin, pin)` - Create identifier instance from components
 
-### Actor Class
+### Identifier Class
 
 #### Creation and Parsing
-- `Sashite::Gan::Actor.new(name, type, side, state = :normal)` - Create actor instance
-- `Sashite::Gan::Actor.parse(gan_string)` - Parse GAN string (same as module method)
-- `Sashite::Gan::Actor.valid?(gan_string)` - Validate GAN string (class method)
+- `Sashite::Qpi::Identifier.new(sin, pin)` - Create identifier from SIN and PIN strings
+- `Sashite::Qpi::Identifier.parse(qpi_string)` - Parse QPI string
 
 #### Attribute Access
-- `#name` - Get style name (symbol with proper capitalization)
-- `#type` - Get piece type (symbol :A to :Z, always uppercase)
-- `#side` - Get player side (:first or :second)
-- `#state` - Get piece state (:normal, :enhanced, or :diminished)
-- `#to_s` - Convert to GAN string representation
+- `#sin` - Get SIN component (style identifier as symbol)
+- `#pin` - Get PIN component (piece identifier as symbol)
+- `#style` - Get style (alias for #sin)
+- `#type` - Get piece type (from PIN component)
+- `#side` - Get player side (from PIN component)
+- `#state` - Get piece state (from PIN component)
+- `#to_s` - Convert to QPI string representation
+- `#to_sin` - Convert to SIN string representation (style component only)
 - `#to_pin` - Convert to PIN string representation (piece component only)
-- `#to_snn` - Convert to SNN string representation (style component only)
+
+#### Component Access
+- `#sin_component` - Get parsed SIN identifier object
+- `#pin_component` - Get parsed PIN identifier object
 
 #### Component Extraction
 
-The `to_pin` and `to_snn` methods allow extraction of individual notation components:
+The `to_sin` and `to_pin` methods allow extraction of individual notation components:
 
 ```ruby
-actor = Sashite::Gan.parse("CHESS:+K")
+identifier = Sashite::Qpi.parse("C:+K")
 
-# Full GAN representation
-actor.to_s # => "CHESS:+K"
+# Full QPI representation
+identifier.to_s # => "C:+K"
 
 # Individual components
-actor.to_snn      # => "CHESS" (style component)
-actor.to_pin      # => "+K"    (piece component)
+identifier.to_sin    # => "C"  (style component)
+identifier.to_pin    # => "+K" (piece component)
 
 # Component transformation example
-flipped = actor.flip
-flipped.to_s      # => "chess:+k"
-flipped.to_snn    # => "chess"  (lowercase for second player)
-flipped.to_pin    # => "+k"     (lowercase with state preserved)
+flipped = identifier.flip
+flipped.to_s         # => "c:+k"
+flipped.to_sin       # => "c"  (lowercase for second player)
+flipped.to_pin       # => "+k" (lowercase with state preserved)
 
 # State manipulation example
-normalized = actor.normalize
-normalized.to_s   # => "CHESS:K"
-normalized.to_pin # => "K"      (state modifier removed)
-normalized.to_snn # => "CHESS"  (style unchanged)
+normalized = identifier.normalize
+normalized.to_s      # => "C:K"
+normalized.to_sin    # => "C"  (style unchanged)
+normalized.to_pin    # => "K"  (state modifier removed)
 ```
 
-#### Component Handling
+#### Validation Queries
+- `#valid?` - Check if identifier has semantic consistency
+- `#same_style?(other)` - Check if same style
+- `#cross_style?(other)` - Check if different styles
+- `#same_side?(other)` - Check if same side
+- `#same_type?(other)` - Check if same type
+- `#same_state?(other)` - Check if same state
 
-**Important**: Following PIN and SNN conventions:
-- **Style names** are stored with proper capitalization (`:Chess`, `:Shogi`)
-- **Piece types** are stored as uppercase symbols (`:K`, `:P`)
-- **Display case** is determined by `side` during rendering
+#### Transformations (immutable - return new instances)
 
-```ruby
-# Both create the same internal representation
-actor1 = Sashite::Gan.parse("CHESS:K")  # name: :Chess, type: :K, side: :first
-actor2 = Sashite::Gan.parse("chess:k")  # name: :Chess, type: :K, side: :second
-
-actor1.name        # => :Chess (proper capitalization)
-actor2.name        # => :Chess (same style name)
-actor1.type        # => :K (uppercase type)
-actor2.type        # => :K (same type)
-
-actor1.to_s        # => "CHESS:K" (uppercase display)
-actor2.to_s        # => "chess:k" (lowercase display)
-actor1.to_snn      # => "CHESS" (uppercase style)
-actor2.to_snn      # => "chess" (lowercase style)
-actor1.to_pin      # => "K" (uppercase piece)
-actor2.to_pin      # => "k" (lowercase piece)
-```
-
-#### State Queries
-- `#normal?` - Check if normal state (no modifiers)
-- `#enhanced?` - Check if enhanced state
-- `#diminished?` - Check if diminished state
-
-#### Side Queries
-- `#first_player?` - Check if first player actor
-- `#second_player?` - Check if second player actor
-
-#### State Transformations (immutable - return new instances)
+**PIN Component Transformations:**
 - `#enhance` - Create enhanced version
 - `#diminish` - Create diminished version
 - `#normalize` - Remove all state modifiers
-- `#flip` - Switch player (change side)
+- `#with_type(new_type)` - Change piece type
+- `#flip_side` - Switch player side
 
-#### Attribute Transformations (immutable - return new instances)
-- `#with_name(new_name)` - Create actor with different style name
-- `#with_type(new_type)` - Create actor with different piece type
-- `#with_side(new_side)` - Create actor with different side
-- `#with_state(new_state)` - Create actor with different state
+**SIN Component Transformations:**
+- `#with_style(new_style)` - Change style
+- `#flip_style` - Switch style player assignment
 
-#### Comparison Methods
-- `#same_name?(other)` - Check if same style name
-- `#same_type?(other)` - Check if same piece type
-- `#same_side?(other)` - Check if same side
-- `#same_state?(other)` - Check if same state
-- `#==(other)` - Full equality comparison
+**Combined Transformations:**
+- `#flip` - Flip both style and side assignments
+- `#with_components(sin, pin)` - Create with different components
 
-### Constants
-- `Sashite::Gan::Actor::SEPARATOR` - Colon separator character
+#### State Queries
+- `#normal?` - Check if normal state
+- `#enhanced?` - Check if enhanced state
+- `#diminished?` - Check if diminished state
+- `#first_player?` - Check if first player piece
+- `#second_player?` - Check if second player piece
 
 ## Advanced Usage
 
 ### Component Extraction and Manipulation
 
-The `to_pin` and `to_snn` methods enable powerful component-based operations:
+The `to_sin` and `to_pin` methods enable powerful component-based operations:
 
 ```ruby
 # Extract and manipulate components
-actor = Sashite::Gan.parse("SHOGI:+P")
+identifier = Sashite::Qpi.parse("S:+P")
 
 # Component extraction
-style_str = actor.to_snn    # => "SHOGI"
-piece_str = actor.to_pin    # => "+P"
+style_str = identifier.to_sin    # => "S"
+piece_str = identifier.to_pin    # => "+P"
 
 # Reconstruct from components
-reconstructed = "#{style_str}:#{piece_str}" # => "SHOGI:+P"
+reconstructed = "#{style_str}:#{piece_str}" # => "S:+P"
 
 # Cross-component analysis
-actors = [
-  Sashite::Gan.parse("CHESS:K"),
-  Sashite::Gan.parse("SHOGI:K"),
-  Sashite::Gan.parse("chess:k")
+identifiers = [
+  Sashite::Qpi.parse("C:K"),
+  Sashite::Qpi.parse("S:K"),
+  Sashite::Qpi.parse("c:k")
 ]
 
 # Group by style component
-by_style = actors.group_by(&:to_snn)
-# => {"CHESS" => [...], "SHOGI" => [...], "chess" => [...]}
+by_style = identifiers.group_by(&:to_sin)
+# => {"C" => [...], "S" => [...], "c" => [...]}
 
 # Group by piece component
-by_piece = actors.group_by(&:to_pin)
+by_piece = identifiers.group_by(&:to_pin)
 # => {"K" => [...], "k" => [...]}
 
 # Component-based filtering
-uppercase_styles = actors.select { |a| a.to_snn == a.to_snn.upcase }
-enhanced_pieces = actors.select { |a| a.to_pin.start_with?("+") }
+uppercase_styles = identifiers.select { |i| i.to_sin == i.to_sin.upcase }
+enhanced_pieces = identifiers.select { |i| i.to_pin.start_with?("+") }
 ```
 
 ### Component Reconstruction Patterns
 
 ```ruby
 # Template-based reconstruction
-def apply_style_template(actors, new_style)
-  actors.map do |actor|
-    pin_part = actor.to_pin
-    side = actor.side
+def apply_style_template(identifiers, new_style)
+  identifiers.map do |identifier|
+    pin_part = identifier.to_pin
+    side = identifier.side
 
     # Apply new style while preserving piece and side
     new_style_str = side == :first ? new_style.to_s.upcase : new_style.to_s.downcase
-    Sashite::Gan.parse("#{new_style_str}:#{pin_part}")
+    Sashite::Qpi.parse("#{new_style_str}:#{pin_part}")
   end
 end
 
 # Convert chess pieces to shōgi style
 chess_pieces = [
-  Sashite::Gan.parse("CHESS:K"),
-  Sashite::Gan.parse("chess:+q")
+  Sashite::Qpi.parse("C:K"),
+  Sashite::Qpi.parse("c:+q")
 ]
 
-shogi_pieces = apply_style_template(chess_pieces, :Shogi)
-# => [SHOGI:K, shogi:+q]
+shogi_pieces = apply_style_template(chess_pieces, :S)
+# => [S:K, s:+q]
 
 # Component swapping
-def swap_components(actor1, actor2)
+def swap_components(identifier1, identifier2)
   [
-    Sashite::Gan.parse("#{actor1.to_snn}:#{actor2.to_pin}"),
-    Sashite::Gan.parse("#{actor2.to_snn}:#{actor1.to_pin}")
+    Sashite::Qpi.parse("#{identifier1.to_sin}:#{identifier2.to_pin}"),
+    Sashite::Qpi.parse("#{identifier2.to_sin}:#{identifier1.to_pin}")
   ]
 end
 
-chess_king = Sashite::Gan.parse("CHESS:K")
-shogi_pawn = Sashite::Gan.parse("shogi:p")
+chess_king = Sashite::Qpi.parse("C:K")
+shogi_pawn = Sashite::Qpi.parse("s:p")
 
 swapped = swap_components(chess_king, shogi_pawn)
-# => [CHESS:p, shogi:K]
+# => [C:p, s:K]
 ```
 
-### Immutable Transformations
+### Cross-Style Game Management
+
 ```ruby
-# All transformations return new instances
-original = Sashite::Gan.parse("CHESS:P")
-enhanced = original.enhance
-cross_style = original.with_name(:Shogi)
-enemy = original.flip
-
-# Original actor is never modified
-puts original     # => "CHESS:P"
-puts enhanced     # => "CHESS:+P"
-puts cross_style  # => "SHOGI:P"
-puts enemy        # => "chess:p"
-
-# Component extraction shows changes
-puts enhanced.to_pin # => "+P" (state changed)
-puts cross_style.to_snn # => "SHOGI" (style changed)
-puts enemy.to_snn      # => "chess" (case changed)
-puts enemy.to_pin      # => "p" (case changed)
-
-# Transformations can be chained
-result = original.flip.with_name(:Xiangqi).enhance
-puts result # => "xiangqi:+p"
-puts result.to_snn     # => "xiangqi"
-puts result.to_pin     # => "+p"
-```
-
-### Multi-Style Game Management
-```ruby
-class CrossStyleGame
+class CrossStyleMatch
   def initialize
-    @actors = []
-    @style_assignments = {}
+    @pieces = {}
   end
 
-  def assign_style(player, style)
-    side = player == :white ? :first : :second
-    @style_assignments[player] = { style: style, side: side }
+  def place(square, qpi_string)
+    identifier = Sashite::Qpi.parse(qpi_string)
+    @pieces[square] = identifier
   end
 
-  def create_actor(player, type, state = :normal)
-    assignment = @style_assignments[player]
-    Sashite::Gan::Actor.new(assignment[:style], type, assignment[:side], state)
+  def pieces_by_style(style)
+    @pieces.select { |_, piece| piece.style.to_s.upcase == style.to_s.upcase }
   end
 
-  def valid_combination?
-    return true if @style_assignments.size < 2
-
-    sides = @style_assignments.values.map { |a| a[:side] }
-    sides.uniq.size == 2 # Must have different sides
+  def cross_style_pieces
+    styles = @pieces.values.map { |p| p.style.to_s.upcase }.uniq
+    styles.size > 1
   end
 
-  def get_player_style_string(player)
-    actor = create_actor(player, :K) # Use king as reference
-    actor.to_snn
+  def promote(square, new_type = :Q)
+    piece = @pieces[square]
+    return nil unless piece&.normal?
+
+    @pieces[square] = piece.with_type(new_type).enhance
   end
 end
 
 # Usage
-game = CrossStyleGame.new
-game.assign_style(:white, :Chess)
-game.assign_style(:black, :Shogi)
+match = CrossStyleMatch.new
+match.place("e1", "C:K")    # Chess king
+match.place("e8", "s:k")    # Shōgi king
+match.place("a1", "C:R")    # Chess rook
+match.place("a9", "s:l")    # Shōgi lance
 
-white_king = game.create_actor(:white, :K)
-black_king = game.create_actor(:black, :K)
+chess_pieces = match.pieces_by_style(:C)
+shogi_pieces = match.pieces_by_style(:S)
 
-puts white_king # => "CHESS:K"
-puts white_king.to_snn # => "CHESS"
-puts black_king # => "shogi:k"
-puts black_king.to_snn # => "shogi"
-puts game.valid_combination? # => true
+puts "Cross-style match: #{match.cross_style_pieces}" # => true
+puts "Chess pieces: #{chess_pieces.size}"             # => 2
+puts "Shōgi pieces: #{shogi_pieces.size}"             # => 2
 ```
 
-### Validation and Error Handling
+### Capture Mechanics Simulation
+
 ```ruby
-# Comprehensive validation with both module and class methods
-def safe_parse(gan_string)
-  # You can use either method for validation
-  return nil unless Sashite::Gan.valid?(gan_string)
+def simulate_capture(attacker_qpi, defender_qpi, game_rules)
+  attacker = Sashite::Qpi.parse(attacker_qpi)
+  defender = Sashite::Qpi.parse(defender_qpi)
 
-  # Alternative: return nil unless Sashite::Gan::Actor.valid?(gan_string)
+  case game_rules
+  when :chess
+    # Chess: captured piece becomes inactive
+    captured = defender  # Piece retains identity but becomes inactive
 
-  Sashite::Gan.parse(gan_string)
-rescue ArgumentError => e
-  puts "Parse error: #{e.message}"
-  nil
+  when :shogi
+    # Shōgi: captured piece changes side and loses promotion
+    captured = defender.flip_side.normalize
+
+  when :ogi_transformation
+    # Ōgi: captured piece transforms completely
+    captured = attacker.with_type(:P).normalize  # Becomes pawn of capturing side
+
+  else
+    captured = defender
+  end
+
+  {
+    original: defender.to_s,
+    captured: captured.to_s,
+    attacker_style: attacker.style,
+    transformation: defender.to_s != captured.to_s
+  }
 end
 
-# Batch validation with component extraction
-gan_strings = ["CHESS:K", "Chess:K", "SHOGI:+p", "invalid"]
-valid_actors = gan_strings.filter_map { |s| safe_parse(s) }
+# Chess capture
+chess_result = simulate_capture("C:Q", "c:p", :chess)
+puts chess_result  # => { original: "c:p", captured: "c:p", ... }
 
-puts "Valid actors with components:"
-valid_actors.each do |actor|
-  puts "  #{actor} -> style: #{actor.to_snn}, piece: #{actor.to_pin}"
-end
+# Shōgi capture
+shogi_result = simulate_capture("S:R", "s:+p", :shogi)
+puts shogi_result  # => { original: "s:+p", captured: "S:P", ... }
 
-# Module-level validation
-Sashite::Gan.valid?("CHESS:K")           # => true
-Sashite::Gan.valid?("chess:k")           # => true
-Sashite::Gan.valid?("Chess:K")           # => false (mixed case)
-Sashite::Gan.valid?("CHESS")             # => false (missing piece)
-
-# Class-level validation (equivalent to module method)
-Sashite::Gan::Actor.valid?("CHESS:K")    # => true
-Sashite::Gan::Actor.valid?("chess:k")    # => true
-Sashite::Gan::Actor.valid?("Chess:K")    # => false (mixed case)
-Sashite::Gan::Actor.valid?("CHESS:k")    # => false (case mismatch)
+# Ōgi transformation
+ogi_result = simulate_capture("O:K", "c:q", :ogi_transformation)
+puts ogi_result    # => { original: "c:q", captured: "O:P", ... }
 ```
 
-### Collection Operations
+### Piece Analysis
+
 ```ruby
-# Working with actor collections
-actors = [
-  Sashite::Gan.parse("CHESS:K"),
-  Sashite::Gan.parse("CHESS:Q"),
-  Sashite::Gan.parse("shogi:k"),
-  Sashite::Gan.parse("shogi:g"),
-  Sashite::Gan.parse("XIANGQI:G")
-]
+def analyze_position(qpi_strings)
+  pieces = qpi_strings.map { |qpi| Sashite::Qpi.parse(qpi) }
 
-# Group by various attributes
-by_style = actors.group_by(&:name)
-by_side = actors.group_by(&:side)
-by_type = actors.group_by(&:type)
-
-# Group by string components
-by_style_string = actors.group_by(&:to_snn)
-by_piece_string = actors.group_by(&:to_pin)
-
-puts "By style string: #{by_style_string.keys}"  # => ["CHESS", "shogi", "XIANGQI"]
-puts "By piece string: #{by_piece_string.keys}"  # => ["K", "Q", "k", "g", "G"]
-
-# Filter operations
-first_player_actors = actors.select(&:first_player?)
-chess_actors = actors.select { |a| a.name == :Chess }
-kings = actors.select { |a| a.type == :K }
-uppercase_styles = actors.select { |a| a.to_snn == a.to_snn.upcase }
-
-# Transform collections immutably
-enhanced_actors = actors.map(&:enhance)
-enemy_actors = actors.map(&:flip)
-
-# Show component changes
-puts "Enhanced actors:"
-enhanced_actors.each { |a| puts "  #{a} (pin: #{a.to_pin})" }
-
-puts "Enemy actors:"
-enemy_actors.each { |a| puts "  #{a} (snn: #{a.to_snn}, pin: #{a.to_pin})" }
-
-# Complex queries
-cross_style_pairs = actors.combination(2).select do |a1, a2|
-  a1.name != a2.name && a1.side != a2.side
+  {
+    total: pieces.size,
+    by_style: pieces.group_by(&:style),
+    by_side: pieces.group_by(&:side),
+    by_type: pieces.group_by(&:type),
+    by_state: pieces.group_by(&:state),
+    cross_style: pieces.map(&:style).uniq.size > 1,
+    promoted: pieces.count(&:enhanced?),
+    weakened: pieces.count(&:diminished?)
+  }
 end
 
-puts "Cross-style pairs: #{cross_style_pairs.size}"
+position = %w[C:K C:Q C:+R c:k c:q s:+r S:G s:+p]
+analysis = analyze_position(position)
+
+puts "Cross-style position: #{analysis[:cross_style]}"  # => true
+puts "Styles present: #{analysis[:by_style].keys}"     # => [:C, :c, :s, :S]
+puts "Promoted pieces: #{analysis[:promoted]}"         # => 3
 ```
 
-## Protocol Mapping
+### Validation Patterns
 
-GAN encodes piece attributes by combining SNN and PIN information:
+```ruby
+class QpiValidator
+  def self.validate_match_consistency(qpi_strings)
+    pieces = qpi_strings.map { |qpi| Sashite::Qpi.parse(qpi) }
+    errors = []
 
-| Protocol Attribute | GAN Encoding | Examples | Notes |
-|-------------------|--------------|----------|-------|
-| **Type** | PIN letter choice | `CHESS:K` = King, `SHOGI:P` = Pawn | Type stored as uppercase symbol (`:K`, `:P`) |
-| **Side** | Unified case across components | `CHESS:K` = First player, `chess:k` = Second player | Case consistency enforced |
-| **State** | PIN prefix modifier | `SHOGI:+P` = Enhanced, `CHESS:-P` = Diminished | |
-| **Style** | SNN identifier | `CHESS:K` = Chess style, `SHOGI:K` = Shōgi style | Style stored with proper capitalization (`:Chess`, `:Shogi`) |
+    # Check for semantic consistency
+    pieces.each do |piece|
+      unless piece.valid?
+        errors << "Invalid piece: #{piece}"
+      end
+    end
 
-## Properties
+    # Check for duplicate pieces at same location (if positions provided)
+    # Check for impossible combinations, etc.
 
-* **Rule-Agnostic**: Independent of specific game mechanics
-* **Complete Identification**: Explicit representation of all four piece attributes
-* **Cross-Style Support**: Enables multi-tradition gaming environments
-* **Component Clarity**: Clear separation between style context and piece identity
-* **Component Extraction**: Individual SNN and PIN components accessible via `to_snn` and `to_pin`
-* **Unified Case Encoding**: Consistent case across both components for side identification
-* **Protocol Compliance**: Direct implementation of Sashité piece attributes
-* **Immutable Design**: All operations return new instances, ensuring thread safety
-* **Compositional Architecture**: Built on independent SNN and PIN specifications
-* **Modular Validation**: Delegates validation to underlying components for consistency
+    errors.empty? ? :valid : errors
+  end
+
+  def self.cross_style_rules_check(qpi1, qpi2)
+    piece1 = Sashite::Qpi.parse(qpi1)
+    piece2 = Sashite::Qpi.parse(qpi2)
+
+    {
+      same_style: piece1.same_style?(piece2),
+      cross_style: piece1.cross_style?(piece2),
+      compatible_interaction: compatible_styles?(piece1.style, piece2.style)
+    }
+  end
+
+  private
+
+  def self.compatible_styles?(style1, style2)
+    # Implementation depends on game rules
+    # This is a placeholder for actual compatibility logic
+    true
+  end
+end
+```
+
+## System Constraints
+
+- **Semantic Consistency**: SIN and PIN components must have matching player assignments
+- **Component Independence**: Each component validated according to its own specification
+- **Cross-Style Support**: Enables multi-tradition gaming environments
+- **Complete Attribute Coverage**: All four fundamental piece attributes represented
+
+## Use Cases
+
+QPI is particularly useful for:
+
+1. **Multi-Style Environments**: Positions involving pieces from multiple style traditions
+2. **Cross-Style Games**: Games combining elements from different piece traditions
+3. **Component Analysis**: Extracting and analyzing style and piece information separately using `to_sin` and `to_pin`
+4. **Game Engine Development**: Engines needing unambiguous piece identification
+5. **Database Systems**: Storing game data without naming conflicts
+6. **Hybrid Analysis**: Comparing strategic elements across different traditions
+7. **Functional Programming**: Immutable game state representations
+8. **Format Conversion**: Converting between QPI and individual SIN/PIN representations
+9. **Validation Systems**: Leveraging modular validation for robust error checking
+
+## Component Dependencies
+
+QPI builds upon two foundational specifications:
+
+- [SIN (Style Identifier Notation)](https://sashite.dev/specs/sin/1.0.0/): Style identification with player assignment
+- [PIN (Piece Identifier Notation)](https://sashite.dev/specs/pin/1.0.0/): Piece type, side, and state representation
+
+Both dependencies are automatically managed:
+
+```ruby
+# Dependencies are resolved automatically
+qpi = Sashite::Qpi.parse("C:+K")
+
+# Access underlying components
+sin_component = qpi.sin_component  # => Sashite::Sin::Identifier instance
+pin_component = qpi.pin_component  # => Sashite::Pin::Identifier instance
+
+# Component methods are available
+sin_component.first_player?        # => true
+pin_component.enhanced?            # => true
+```
+
+## Design Properties
+
+- **Rule-Agnostic**: Independent of specific game mechanics
+- **Complete Identification**: Explicit representation of all four piece attributes
+- **Cross-Style Support**: Enables multi-tradition gaming environments
+- **Component Clarity**: Clear separation between style context and piece identity
+- **Component Extraction**: Individual SIN and PIN components accessible via `to_sin` and `to_pin`
+- **Semantic Validation**: Ensures consistency between style and piece ownership
+- **Modular Validation**: Delegates validation to underlying components for consistency
+- **Immutable**: All instances are frozen and transformations return new objects
+- **Functional**: Pure functions with no side effects
 
 ## Implementation Notes
 
 ### Validation Architecture
 
-GAN follows a modular validation approach that leverages the underlying component libraries:
+QPI follows a modular validation approach that leverages the underlying component libraries:
 
-1. **Component Splitting**: GAN strings are split on the colon separator
-2. **Individual Validation**: Each component is validated using its specific regex:
-   - SNN component: `Sashite::Snn::Style::SNN_PATTERN`
-   - PIN component: `Sashite::Pin::Piece::PIN_PATTERN`
-3. **Case Consistency**: Additional validation ensures matching case between components
+1. **Component Splitting**: QPI strings are split on the colon separator
+2. **Individual Validation**: Each component is validated using its specific pattern:
+   - SIN component: `Sashite::Sin::Identifier::SIN_PATTERN`
+   - PIN component: `Sashite::Pin::Identifier::PIN_PATTERN`
+3. **Cross-Reference Constraint**: Additional validation ensures matching player assignment between components
 
 This approach:
-- **Avoids Code Duplication**: No need to maintain a separate GAN regex
-- **Maintains Consistency**: Automatically inherits validation improvements from SNN and PIN
+- **Avoids Code Duplication**: No need to maintain a separate QPI regex
+- **Maintains Consistency**: Automatically inherits validation improvements from SIN and PIN
 - **Provides Clear Error Messages**: Component-specific validation failures are more informative
 - **Enables Modularity**: Each library maintains its own validation logic
 
+```ruby
+# Example of validation delegation in practice
+qpi_string = "C:+K"
+
+# QPI internally splits and validates each component
+sin_part, pin_part = qpi_string.split(':')
+
+# Delegates to component validation
+sin_valid = Sashite::Sin.valid?(sin_part)    # => true
+pin_valid = Sashite::Pin.valid?(pin_part)    # => true
+
+# Plus semantic consistency check
+sin_identifier = Sashite::Sin.parse(sin_part)
+pin_identifier = Sashite::Pin.parse(pin_part)
+sides_match = sin_identifier.side == pin_identifier.side  # => true
+
+overall_valid = sin_valid && pin_valid && sides_match
+```
+
 ### Component Handling Convention
 
-GAN follows the same internal representation conventions as its constituent libraries:
+QPI follows the same internal representation conventions as its constituent libraries:
 
-1. **Style Names**: Always stored with proper capitalization (`:Chess`, `:Shogi`)
+1. **Style Letters**: Stored as symbols with case preserved (`:C`, `:c`, `:S`, `:s`)
 2. **Piece Types**: Always stored as uppercase symbols (`:K`, `:P`)
 3. **Display Logic**: Case is computed from `side` during string rendering
 
 This ensures predictable behavior and consistency across the entire Sashité ecosystem.
 
-## System Constraints
-
-- **Case Consistency**: SNN and PIN components must have matching case
-- **Exactly 2 players**: Distinguished through consistent case encoding
-- **Style Assignment**: Fixed throughout a game (first/second player styles remain constant)
-- **Component Validation**: Both SNN and PIN components must be individually valid
-
-## Use Cases
-
-GAN is particularly useful for:
-
-1. **Multi-Style Environments**: Positions involving pieces from multiple style traditions
-2. **Cross-Style Games**: Games combining elements from different piece traditions
-3. **Component Analysis**: Extracting and analyzing style and piece information separately
-4. **Game Engine Development**: Engines needing unambiguous piece identification
-5. **Database Systems**: Storing game data without naming conflicts
-6. **Hybrid Analysis**: Comparing strategic elements across different traditions
-7. **Functional Programming**: Immutable game state representations
-8. **Format Conversion**: Converting between GAN and individual SNN/PIN representations
-
-## Dependencies
-
-This gem depends on:
-
-- [sashite-snn](https://github.com/sashite/snn.rb) - Style Name Notation implementation
-- [sashite-pin](https://github.com/sashite/pin.rb) - Piece Identifier Notation implementation
-
 ## Related Specifications
 
-- [GAN Specification v1.0.0](https://sashite.dev/specs/gan/1.0.0/)
-- [GAN Examples](https://sashite.dev/specs/gan/1.0.0/examples/)
-- [SNN Specification v1.0.0](https://sashite.dev/specs/snn/1.0.0/)
-- [PIN Specification v1.0.0](https://sashite.dev/specs/pin/1.0.0/)
-- [Game Protocol Foundation](https://sashite.dev/game-protocol/)
+- [QPI Specification v1.0.0](https://sashite.dev/specs/qpi/1.0.0/) - Complete technical specification
+- [QPI Examples](https://sashite.dev/specs/qpi/1.0.0/examples/) - Practical implementation examples
+- [SIN Specification v1.0.0](https://sashite.dev/specs/sin/1.0.0/) - Style identification component
+- [PIN Specification v1.0.0](https://sashite.dev/specs/pin/1.0.0/) - Piece identification component
+- [EPIN Specification v1.0.0](https://sashite.dev/specs/epin/1.0.0/) - Alternative with derivation markers
+- [Sashité Protocol](https://sashite.dev/protocol/) - Conceptual foundation for abstract strategy board games
 
 ## Documentation
 
-- [API Documentation](https://rubydoc.info/github/sashite/gan.rb/main)
-- [SNN Documentation](https://rubydoc.info/github/sashite/snn.rb/main)
-- [PIN Documentation](https://rubydoc.info/github/sashite/pin.rb/main)
+- [Official QPI Specification v1.0.0](https://sashite.dev/specs/qpi/1.0.0/)
+- [QPI Examples Documentation](https://sashite.dev/specs/qpi/1.0.0/examples/)
+- [Sashité Protocol Foundation](https://sashite.dev/protocol/)
+- [API Documentation](https://rubydoc.info/github/sashite/qpi.rb/main)
 
 ## Development
 
 ```sh
 # Clone the repository
-git clone https://github.com/sashite/gan.rb.git
-cd gan.rb
+git clone https://github.com/sashite/qpi.rb.git
+cd qpi.rb
 
 # Install dependencies
 bundle install
