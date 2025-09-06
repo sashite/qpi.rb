@@ -1,55 +1,103 @@
 # frozen_string_literal: true
 
-require "sashite/sin"
 require "sashite/pin"
+require "sashite/sin"
 
 module Sashite
   module Qpi
     # Represents an identifier in QPI (Qualified Piece Identifier) format.
     #
-    # A QPI identifier consists of a SIN component and PIN component separated by a colon:
-    # - SIN component: Style identifier with case-based player assignment
-    # - PIN component: Piece identifier with type, state, and case-based ownership
-    # - Semantic constraint: Both components must represent the same player side
+    # A QPI identifier combines style and piece attributes into a unified representation:
+    # - Family: Style family from SIN component (:A to :Z only)
+    # - Type: Piece type (:A to :Z) from PIN component
+    # - Side: Player assignment (:first or :second) from both components
+    # - State: Piece state (:normal, :enhanced, :diminished) from PIN component
+    # - Semantic constraint: SIN and PIN components must represent the same player
     #
     # All instances are immutable - transformation methods return new instances.
-    # This follows the QPI Specification v1.0.0 combining SIN and PIN with semantic validation.
+    # This follows the QPI Specification v1.0.0 with strict parameter validation
+    # consistent with the underlying SIN and PIN primitive specifications.
+    #
+    # ## Strict Parameter Validation
+    #
+    # QPI enforces the same strict validation as its underlying primitives:
+    # - Family parameter must be a symbol from :A to :Z (not :a to :z)
+    # - Type parameter must be a symbol from :A to :Z (delegated to PIN)
+    # - Side parameter determines the display case, not the input parameters
+    #
+    # This ensures consistency with SIN and PIN behavior where lowercase symbols
+    # are rejected with ArgumentError.
+    #
+    # @example Strict parameter validation
+    #   # Valid - uppercase symbols only
+    #   Sashite::Qpi::Identifier.new(:C, :K, :first, :normal)   # => "C:K"
+    #   Sashite::Qpi::Identifier.new(:C, :K, :second, :normal)  # => "c:k"
+    #
+    #   # Invalid - lowercase symbols rejected
+    #   Sashite::Qpi::Identifier.new(:c, :K, :second, :normal)  # => ArgumentError
+    #   Sashite::Qpi::Identifier.new(:C, :k, :second, :normal)  # => ArgumentError
+    #
+    # @see https://sashite.dev/specs/qpi/1.0.0/ QPI Specification v1.0.0
     class Identifier
-      # Component separator
+      # Component separator for string representation
       SEPARATOR = ":"
 
       # Error messages
       ERROR_INVALID_QPI = "Invalid QPI string: %s"
-      ERROR_INVALID_SIN_COMPONENT = "Invalid SIN component: %s"
-      ERROR_INVALID_PIN_COMPONENT = "Invalid PIN component: %s"
-      ERROR_SEMANTIC_MISMATCH = "SIN and PIN components must represent the same player side: SIN side=%s, PIN side=%s"
+      ERROR_SEMANTIC_MISMATCH = "Family and side must represent the same player: family=%s (side=%s), side=%s"
       ERROR_MISSING_SEPARATOR = "QPI string must contain exactly one colon separator: %s"
 
-      # @return [Symbol] the SIN component (style identifier)
-      def sin
-        @sin_identifier.letter
+      # @return [Symbol] the style family (:A to :Z based on SIN component)
+      def family
+        @sin_identifier.family
       end
 
-      # @return [Symbol] the PIN component (piece identifier)
-      def pin
-        @pin_identifier.to_s.to_sym
+      # @return [Symbol] the piece type (:A to :Z)
+      def type
+        @pin_identifier.type
+      end
+
+      # @return [Symbol] the player side (:first or :second)
+      def side
+        @pin_identifier.side
+      end
+
+      # @return [Symbol] the piece state (:normal, :enhanced, or :diminished)
+      def state
+        @pin_identifier.state
       end
 
       # Create a new identifier instance
       #
-      # @param sin [String] style identifier (SIN notation)
-      # @param pin [String] piece identifier (PIN notation)
+      # @param family [Symbol] style family identifier (:A to :Z only)
+      # @param type [Symbol] piece type (:A to :Z only)
+      # @param side [Symbol] player side (:first or :second)
+      # @param state [Symbol] piece state (:normal, :enhanced, or :diminished)
       # @raise [ArgumentError] if parameters are invalid or semantically inconsistent
-      def initialize(sin, pin)
-        @sin_string = String(sin)
-        @pin_string = String(pin)
+      #
+      # @example Create identifiers with strict parameter validation
+      #   # Valid - uppercase symbols only
+      #   chess_king = Sashite::Qpi::Identifier.new(:C, :K, :first, :normal)   # => "C:K"
+      #   chess_pawn = Sashite::Qpi::Identifier.new(:C, :P, :second, :normal)  # => "c:p"
+      #
+      #   # Invalid - lowercase symbols rejected
+      #   # Sashite::Qpi::Identifier.new(:c, :K, :first, :normal)   # => ArgumentError
+      #   # Sashite::Qpi::Identifier.new(:C, :k, :first, :normal)   # => ArgumentError
+      def initialize(family, type, side, state = Pin::Identifier::NORMAL_STATE)
+        # Strict validation - delegate to underlying primitives for consistency
+        Sin::Identifier.validate_family(family)
+        Pin::Identifier.validate_type(type)
+        Pin::Identifier.validate_side(side)
+        Pin::Identifier.validate_state(state)
 
-        validate_components
+        # Create PIN component
+        @pin_identifier = Pin::Identifier.new(type, side, state)
+
+        # Create SIN component - pass family directly without normalization
+        @sin_identifier = Sin::Identifier.new(family, side)
+
+        # Validate semantic consistency
         validate_semantic_consistency
-
-        # Store parsed instances instead of just strings
-        @sin_identifier = Sin::Identifier.parse(@sin_string)
-        @pin_identifier = Pin::Identifier.parse(@pin_string)
 
         freeze
       end
@@ -59,14 +107,27 @@ module Sashite
       # @param qpi_string [String] QPI notation string (format: sin:pin)
       # @return [Identifier] new identifier instance
       # @raise [ArgumentError] if the QPI string is invalid
+      #
       # @example Parse QPI strings with automatic component separation
-      #   Sashite::Qpi::Identifier.parse("C:K")   # => #<Qpi::Identifier sin=:C pin=:K>
-      #   Sashite::Qpi::Identifier.parse("s:+r")  # => #<Qpi::Identifier sin=:s pin=:+r>
-      #   Sashite::Qpi::Identifier.parse("S:-P")  # => #<Qpi::Identifier sin=:S pin=:-P>
+      #   Sashite::Qpi::Identifier.parse("C:K")   # => #<Qpi::Identifier family=:C type=:K side=:first state=:normal>
+      #   Sashite::Qpi::Identifier.parse("s:+r")  # => #<Qpi::Identifier family=:S type=:R side=:second state=:enhanced>
+      #   Sashite::Qpi::Identifier.parse("X:-S")  # => #<Qpi::Identifier family=:X type=:S side=:first state=:diminished>
       def self.parse(qpi_string)
         string_value = String(qpi_string)
         sin_part, pin_part = split_components(string_value)
-        new(sin_part, pin_part)
+
+        # Parse components
+        sin_identifier = Sin::Identifier.parse(sin_part)
+        pin_identifier = Pin::Identifier.parse(pin_part)
+
+        # Validate semantic consistency BEFORE creating new instance
+        unless sin_identifier.side == pin_identifier.side
+          raise ::ArgumentError, format(ERROR_SEMANTIC_MISMATCH,
+                                        sin_part, sin_identifier.side, pin_identifier.side)
+        end
+
+        # Extract parameters and create new instance
+        new(sin_identifier.family, pin_identifier.type, pin_identifier.side, pin_identifier.state)
       end
 
       # Check if a string is a valid QPI notation
@@ -100,7 +161,7 @@ module Sashite
       # @example Display QPI identifiers
       #   identifier.to_s  # => "C:K"
       def to_s
-        "#{@sin_identifier.to_s}#{SEPARATOR}#{@pin_identifier.to_s}"
+        "#{@sin_identifier}#{SEPARATOR}#{@pin_identifier}"
       end
 
       # Convert to SIN string representation (style component only)
@@ -135,69 +196,31 @@ module Sashite
         @pin_identifier
       end
 
-      # Get the style (alias for sin)
-      #
-      # @return [Symbol] style identifier
-      def style
-        sin
-      end
-
-      # Get the piece type from PIN component
-      #
-      # @return [Symbol] piece type (:A to :Z)
-      def type
-        @pin_identifier.type
-      end
-
-      # Get the player side from PIN component
-      #
-      # @return [Symbol] player side (:first or :second)
-      def side
-        @pin_identifier.side
-      end
-
-      # Get the piece state from PIN component
-      #
-      # @return [Symbol] piece state (:normal, :enhanced, or :diminished)
-      def state
-        @pin_identifier.state
-      end
-
-      # Check if identifier has semantic consistency
-      #
-      # @return [Boolean] true if SIN and PIN components represent the same side
-      def valid?
-        @sin_identifier.side == @pin_identifier.side
-      end
-
       # Create a new identifier with enhanced state
       #
       # @return [Identifier] new identifier with enhanced PIN component
       def enhance
-        new_pin_identifier = @pin_identifier.enhance
-        return self if new_pin_identifier.equal?(@pin_identifier)
+        return self if enhanced?
 
-        self.class.new(@sin_identifier.to_s, new_pin_identifier.to_s)
+        self.class.new(family, type, side, Pin::Identifier::ENHANCED_STATE)
       end
 
       # Create a new identifier with diminished state
       #
       # @return [Identifier] new identifier with diminished PIN component
       def diminish
-        new_pin_identifier = @pin_identifier.diminish
-        return self if new_pin_identifier.equal?(@pin_identifier)
+        return self if diminished?
 
-        self.class.new(@sin_identifier.to_s, new_pin_identifier.to_s)
+        self.class.new(family, type, side, Pin::Identifier::DIMINISHED_STATE)
       end
 
       # Create a new identifier with normal state (no modifiers)
       #
       # @return [Identifier] new identifier with normalized PIN component
       def normalize
-        new_pin_identifier = @pin_identifier.normalize
-        return self if new_pin_identifier.equal?(@pin_identifier)
+        return self if normal?
 
-        self.class.new(@sin_identifier.to_s, new_pin_identifier.to_s)
+        self.class.new(family, type, side, Pin::Identifier::NORMAL_STATE)
       end
 
       # Create a new identifier with different piece type
@@ -205,59 +228,56 @@ module Sashite
       # @param new_type [Symbol] new piece type (:A to :Z)
       # @return [Identifier] new identifier with different type
       def with_type(new_type)
-        new_pin_identifier = @pin_identifier.with_type(new_type)
-        return self if new_pin_identifier.equal?(@pin_identifier)
+        return self if type == new_type
 
-        self.class.new(@sin_identifier.to_s, new_pin_identifier.to_s)
+        self.class.new(family, new_type, side, state)
       end
 
-      # Create a new identifier with different style
+      # Create a new identifier with different side
       #
-      # @param new_style [String, Symbol] new style identifier
-      # @return [Identifier] new identifier with different SIN component
-      def with_style(new_style)
-        # Convert style to appropriate case based on current side
-        new_style_str = case side
-                        when :first then new_style.to_s.upcase
-                        when :second then new_style.to_s.downcase
-                        end
+      # @param new_side [Symbol] new player side (:first or :second)
+      # @return [Identifier] new identifier with different side
+      def with_side(new_side)
+        return self if side == new_side
 
-        return self if new_style_str == @sin_identifier.to_s
-
-        self.class.new(new_style_str, @pin_identifier.to_s)
+        self.class.new(family, type, new_side, state)
       end
 
-      # Create a new identifier with flipped player side
+      # Create a new identifier with different state
       #
-      # @return [Identifier] new identifier with both SIN and PIN components flipped
-      def flip_side
-        new_sin_identifier = @sin_identifier.flip
-        new_pin_identifier = @pin_identifier.flip
-        self.class.new(new_sin_identifier.to_s, new_pin_identifier.to_s)
+      # @param new_state [Symbol] new piece state (:normal, :enhanced, or :diminished)
+      # @return [Identifier] new identifier with different state
+      def with_state(new_state)
+        return self if state == new_state
+
+        self.class.new(family, type, side, new_state)
       end
 
-      # Create a new identifier with flipped style assignment
+      # Create a new identifier with different family
       #
-      # @return [Identifier] new identifier with flipped SIN component only
-      def flip_style
-        new_sin_identifier = @sin_identifier.flip
-        self.class.new(new_sin_identifier.to_s, @pin_identifier.to_s)
+      # @param new_family [Symbol] new style family identifier (:A to :Z)
+      # @return [Identifier] new identifier with different family
+      def with_family(new_family)
+        return self if family == new_family
+
+        self.class.new(new_family, type, side, state)
       end
 
-      # Create a new identifier with both style and side flipped
+      # Create a new identifier with opposite player assignment
       #
-      # @return [Identifier] new identifier with both components flipped
+      # Changes the player assignment (side) while preserving the family and piece attributes.
+      # This maintains semantic consistency between the components.
+      #
+      # @return [Identifier] new identifier with opposite side but same family
+      #
+      # @example Flip player assignment while preserving family and attributes
+      #   chess_first = Sashite::Qpi::Identifier.parse("C:K")   # Chess king, first player
+      #   chess_second = chess_first.flip                       # => "c:k" (Chess king, second player)
+      #
+      #   shogi_first = Sashite::Qpi::Identifier.parse("S:+R")  # Shogi enhanced rook, first player
+      #   shogi_second = shogi_first.flip                       # => "s:+r" (Shogi enhanced rook, second player)
       def flip
-        flip_side
-      end
-
-      # Create a new identifier with different components
-      #
-      # @param new_sin [String] new SIN component
-      # @param new_pin [String] new PIN component
-      # @return [Identifier] new identifier with different components
-      def with_components(new_sin, new_pin)
-        self.class.new(new_sin, new_pin)
+        self.class.new(family, type, opposite_side, state)
       end
 
       # Check if the identifier has normal state
@@ -295,24 +315,24 @@ module Sashite
         @pin_identifier.second_player?
       end
 
-      # Check if this identifier has the same style as another
+      # Check if this identifier has the same family as another
       #
       # @param other [Identifier] identifier to compare with
-      # @return [Boolean] true if same style (case-insensitive)
-      def same_style?(other)
+      # @return [Boolean] true if same family (case-insensitive)
+      def same_family?(other)
         return false unless other.is_a?(self.class)
 
-        @sin_identifier.same_letter?(other.sin_component)
+        @sin_identifier.same_family?(other.sin_component)
       end
 
-      # Check if this identifier has different style from another
+      # Check if this identifier has different family from another
       #
       # @param other [Identifier] identifier to compare with
-      # @return [Boolean] true if different styles
-      def cross_style?(other)
+      # @return [Boolean] true if different families
+      def cross_family?(other)
         return false unless other.is_a?(self.class)
 
-        !same_style?(other)
+        !same_family?(other)
       end
 
       # Check if this identifier has the same side as another
@@ -380,29 +400,24 @@ module Sashite
 
       private_class_method :split_components
 
-      # Validate individual SIN and PIN components
-      #
-      # @raise [ArgumentError] if components are invalid
-      def validate_components
-        unless Sashite::Sin.valid?(@sin_string)
-          raise ::ArgumentError, format(ERROR_INVALID_SIN_COMPONENT, @sin_string)
-        end
-
-        unless Sashite::Pin.valid?(@pin_string)
-          raise ::ArgumentError, format(ERROR_INVALID_PIN_COMPONENT, @pin_string)
-        end
-      end
-
       # Validate semantic consistency between SIN and PIN components
       #
-      # @raise [ArgumentError] if sides don't match
+      # @raise [ArgumentError] if family case doesn't match side
       def validate_semantic_consistency
-        sin_side = Sashite::Sin.parse(@sin_string).side
-        pin_side = Sashite::Pin.parse(@pin_string).side
+        expected_side = @sin_identifier.side
+        actual_side = @pin_identifier.side
 
-        return if sin_side == pin_side
+        return if expected_side == actual_side
 
-        raise ::ArgumentError, format(ERROR_SEMANTIC_MISMATCH, sin_side, pin_side)
+        raise ::ArgumentError, format(ERROR_SEMANTIC_MISMATCH,
+                                      @sin_identifier.letter, expected_side, actual_side)
+      end
+
+      # Get the opposite player side
+      #
+      # @return [Symbol] the opposite side
+      def opposite_side
+        first_player? ? Pin::Identifier::SECOND_PLAYER : Pin::Identifier::FIRST_PLAYER
       end
     end
   end
