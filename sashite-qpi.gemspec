@@ -24,8 +24,8 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version  = ">= 3.2.0"
 
   # Runtime dependencies on foundational primitives
-  spec.add_dependency "sashite-pin", "~> 3.1"
-  spec.add_dependency "sashite-sin", "~> 2.1"
+  spec.add_dependency "sashite-pin", "~> 3.2.0"
+  spec.add_dependency "sashite-sin", "~> 2.1.0"
 
   spec.metadata = {
     "bug_tracker_uri"       => "https://github.com/sashite/qpi.rb/issues",

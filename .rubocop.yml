@@ -22,6 +22,8 @@ AllCops:
   
     - lib/sashite/.DS_Store
   
+    - pkg/
+  
     - test.rb
     - config/**/*
     - tmp/**/*
