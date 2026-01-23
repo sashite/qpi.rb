@@ -1,95 +1,62 @@
 # frozen_string_literal: true
 
-require "sashite/pin"
-require "sashite/sin"
+require_relative "constants"
+require_relative "errors"
 
 module Sashite
   module Qpi
-    # Represents an identifier in QPI (Qualified Piece Identifier) format.
+    # Represents a parsed QPI (Qualified Piece Identifier) identifier.
     #
-    # QPI is pure composition of SIN and PIN primitives with one constraint:
-    # both components must represent the same player (side).
+    # A QPI identifier encodes complete Piece Identity by combining:
+    # - A SIN (Style Identifier Notation) component for Piece Style
+    # - A PIN (Piece Identifier Notation) component for Piece Name, Side, State, and Terminal Status
     #
-    # ## Minimal API Design
+    # Additionally, QPI defines a Native/Derived relationship based on case comparison
+    # between the SIN and PIN letters.
     #
-    # The Identifier class provides only 5 core methods:
-    # 1. new(sin, pin) — create from components with validation
-    # 2. sin — access SIN component
-    # 3. pin — access PIN component
-    # 4. to_s — serialize to QPI string
-    # 5. flip — flip both components (only convenience method)
+    # Instances are immutable (frozen after creation).
     #
-    # Additionally, component replacement methods:
-    # - with_sin(new_sin) — create identifier with different SIN
-    # - with_pin(new_pin) — create identifier with different PIN
-    #
-    # All other operations use the component APIs directly:
-    # - qpi.sin.family — access Piece Style
-    # - qpi.sin.side — access Piece Side
-    # - qpi.pin.type — access Piece Name
-    # - qpi.pin.state — access Piece State
-    # - qpi.pin.terminal? — access Terminal Status
-    #
-    # ## Why Only flip as Convenience?
-    #
-    # flip is the ONLY transformation that naturally operates on both
-    # SIN and PIN components simultaneously. All other transformations
-    # work through component replacement:
-    #
-    #   qpi.with_sin(qpi.sin.with_family(:S))      # Transform SIN
-    #   qpi.with_pin(qpi.pin.with_type(:Q))        # Transform PIN
-    #   qpi.with_pin(qpi.pin.with_terminal(true))  # Transform PIN
-    #
-    # This avoids arbitrary conveniences and maintains a clear principle.
-    #
-    # @example Pure composition
+    # @example Creating identifiers
     #   sin = Sashite::Sin.parse("C")
     #   pin = Sashite::Pin.parse("K^")
-    #   qpi = Sashite::Qpi::Identifier.new(sin, pin)
-    #   qpi.to_s              # => "C:K^"
-    #   qpi.sin               # => SIN::Identifier
-    #   qpi.pin               # => PIN::Identifier
+    #   qpi = Identifier.new(sin, pin)
     #
-    # @example Access attributes via components
-    #   qpi.sin.family        # => :C (Piece Style)
-    #   qpi.pin.type          # => :K (Piece Name)
-    #   qpi.sin.side          # => :first (Piece Side)
-    #   qpi.pin.state         # => :normal (Piece State)
-    #   qpi.pin.terminal?     # => true (Terminal Status)
+    # @example Accessing components
+    #   qpi.sin.style      # => :C
+    #   qpi.pin.type       # => :K
+    #   qpi.pin.side       # => :first
+    #   qpi.pin.state      # => :normal
+    #   qpi.pin.terminal?  # => true
     #
-    # @example Transform via components
-    #   qpi.with_sin(qpi.sin.with_family(:S))     # => "S:K^"
-    #   qpi.with_pin(qpi.pin.with_type(:Q))       # => "C:Q^"
-    #   qpi.flip                                   # => "c:k^"
+    # @example Native/Derived relationship
+    #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("K"))
+    #   qpi.native?   # => true (both uppercase/first)
     #
-    # @see https://sashite.dev/specs/qpi/1.0.0/ QPI Specification v1.0.0
+    #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("k"))
+    #   qpi.derived?  # => true (SIN uppercase, PIN lowercase)
+    #
+    # @see https://sashite.dev/specs/qpi/1.0.0/
     class Identifier
-      # Component separator for string representation
-      SEPARATOR = ":"
-
-      # Error messages
-      ERROR_INVALID_QPI = "Invalid QPI string: %s"
-      ERROR_SEMANTIC_MISMATCH = "SIN and PIN components must have same side: sin.side=%s, pin.side=%s"
-      ERROR_MISSING_SEPARATOR = "QPI string must contain exactly one colon separator: %s"
-
-      # @return [Sin::Identifier] the SIN component
+      # @return [Sashite::Sin::Identifier] The SIN component
       attr_reader :sin
 
-      # @return [Pin::Identifier] the PIN component
+      # @return [Sashite::Pin::Identifier] The PIN component
       attr_reader :pin
 
-      # Create a new identifier from SIN and PIN components
+      # Creates a new Identifier instance.
       #
-      # @param sin [Sin::Identifier] SIN component
-      # @param pin [Pin::Identifier] PIN component
-      # @raise [ArgumentError] if components have different sides
+      # @param sin [Sashite::Sin::Identifier] The SIN component
+      # @param pin [Sashite::Pin::Identifier] The PIN component
+      # @return [Identifier] A new frozen Identifier instance
+      # @raise [Errors::Argument] If components are invalid
       #
       # @example
       #   sin = Sashite::Sin.parse("C")
       #   pin = Sashite::Pin.parse("K^")
-      #   qpi = Sashite::Qpi::Identifier.new(sin, pin)
+      #   Identifier.new(sin, pin)
       def initialize(sin, pin)
-        validate_semantic_consistency(sin, pin)
+        validate_sin!(sin)
+        validate_pin!(pin)
 
         @sin = sin
         @pin = pin
@@ -97,144 +64,180 @@ module Sashite
         freeze
       end
 
-      # Parse a QPI string into an Identifier object
+      # ========================================================================
+      # String Conversion
+      # ========================================================================
+
+      # Returns the QPI string representation.
       #
-      # @param qpi_string [String] QPI notation string (format: sin:pin)
-      # @return [Identifier] new identifier instance
-      # @raise [ArgumentError] if invalid or semantically inconsistent
-      #
-      # @example
-      #   qpi = Sashite::Qpi::Identifier.parse("C:K^")
-      #   qpi.sin.family        # => :C
-      #   qpi.pin.type          # => :K
-      def self.parse(qpi_string)
-        string_value = String(qpi_string)
-        sin_part, pin_part = split_components(string_value)
-
-        sin_identifier = Sin::Identifier.parse(sin_part)
-        pin_identifier = Pin::Identifier.parse(pin_part)
-
-        new(sin_identifier, pin_identifier)
-      end
-
-      # Check if a string is a valid QPI notation
-      #
-      # @param qpi_string [String] the string to validate
-      # @return [Boolean] true if valid QPI, false otherwise
-      #
-      # @example
-      #   Sashite::Qpi::Identifier.valid?("C:K^")   # => true
-      #   Sashite::Qpi::Identifier.valid?("C:k")    # => false (side mismatch)
-      def self.valid?(qpi_string)
-        return false unless qpi_string.is_a?(::String)
-
-        sin_part, pin_part = split_components(qpi_string)
-        return false unless Sashite::Sin.valid?(sin_part) && Sashite::Pin.valid?(pin_part)
-
-        sin_identifier = Sashite::Sin.parse(sin_part)
-        pin_identifier = Sashite::Pin.parse(pin_part)
-        sin_identifier.side == pin_identifier.side
-      rescue ArgumentError
-        false
-      end
-
-      # Convert the identifier to its QPI string representation
-      #
-      # @return [String] QPI notation string (format: sin:pin)
+      # @return [String] The QPI string in format "SIN:PIN"
       #
       # @example
       #   qpi.to_s  # => "C:K^"
       def to_s
-        "#{@sin}#{SEPARATOR}#{@pin}"
+        "#{sin}#{Constants::SEPARATOR}#{pin}"
       end
 
-      # Create a new identifier with different SIN component
+      # ========================================================================
+      # Native/Derived Relationship
+      # ========================================================================
+
+      # Checks if the identifier is native.
       #
-      # @param new_sin [Sin::Identifier] new SIN component
-      # @return [Identifier] new identifier instance
-      # @raise [ArgumentError] if new SIN has different side than PIN
+      # A QPI is native when sin.side equals pin.side (same case).
+      #
+      # @return [Boolean] true if native
       #
       # @example
-      #   qpi.with_sin(qpi.sin.with_family(:S))  # => "S:K^"
+      #   Identifier.new(Sin.parse("C"), Pin.parse("K")).native?  # => true
+      #   Identifier.new(Sin.parse("c"), Pin.parse("k")).native?  # => true
+      #   Identifier.new(Sin.parse("C"), Pin.parse("k")).native?  # => false
+      def native?
+        sin.side.equal?(pin.side)
+      end
+
+      # Checks if the identifier is derived.
+      #
+      # A QPI is derived when sin.side differs from pin.side (different case).
+      #
+      # @return [Boolean] true if derived
+      #
+      # @example
+      #   Identifier.new(Sin.parse("C"), Pin.parse("k")).derived?  # => true
+      #   Identifier.new(Sin.parse("c"), Pin.parse("K")).derived?  # => true
+      #   Identifier.new(Sin.parse("C"), Pin.parse("K")).derived?  # => false
+      def derived?
+        !native?
+      end
+
+      # ========================================================================
+      # Native/Derived Transformations
+      # ========================================================================
+
+      # Returns a new Identifier with PIN case aligned to SIN case.
+      #
+      # If already native, returns self.
+      #
+      # @return [Identifier] A native Identifier
+      #
+      # @example
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("r"))
+      #   qpi.native.to_s  # => "C:R"
+      #
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("R"))
+      #   qpi.native.to_s  # => "C:R" (unchanged)
+      def native
+        return self if native?
+
+        self.class.new(sin, pin.with_side(sin.side))
+      end
+
+      # Returns a new Identifier with PIN case opposite to SIN case.
+      #
+      # If already derived, returns self.
+      #
+      # @return [Identifier] A derived Identifier
+      #
+      # @example
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("R"))
+      #   qpi.derive.to_s  # => "C:r"
+      #
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("r"))
+      #   qpi.derive.to_s  # => "C:r" (unchanged)
+      def derive
+        return self if derived?
+
+        opposite_side = sin.side.equal?(:first) ? :second : :first
+        self.class.new(sin, pin.with_side(opposite_side))
+      end
+
+      # ========================================================================
+      # Component Transformations
+      # ========================================================================
+
+      # Returns a new Identifier with a different SIN component.
+      #
+      # @param new_sin [Sashite::Sin::Identifier] The new SIN component
+      # @return [Identifier] A new Identifier with the specified SIN
+      # @raise [Errors::Argument] If the SIN is invalid
+      #
+      # @example
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("K"))
+      #   qpi.with_sin(Sin.parse("S")).to_s  # => "S:K"
       def with_sin(new_sin)
-        return self if @sin == new_sin
-
-        self.class.new(new_sin, @pin)
+        self.class.new(new_sin, pin)
       end
 
-      # Create a new identifier with different PIN component
+      # Returns a new Identifier with a different PIN component.
       #
-      # @param new_pin [Pin::Identifier] new PIN component
-      # @return [Identifier] new identifier instance
-      # @raise [ArgumentError] if new PIN has different side than SIN
+      # @param new_pin [Sashite::Pin::Identifier] The new PIN component
+      # @return [Identifier] A new Identifier with the specified PIN
+      # @raise [Errors::Argument] If the PIN is invalid
       #
       # @example
-      #   qpi.with_pin(qpi.pin.with_type(:Q))  # => "C:Q^"
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("K"))
+      #   qpi.with_pin(Pin.parse("+Q^")).to_s  # => "C:+Q^"
       def with_pin(new_pin)
-        return self if @pin == new_pin
-
-        self.class.new(@sin, new_pin)
+        self.class.new(sin, new_pin)
       end
 
-      # Create a new identifier with both components flipped
+      # Returns a new Identifier with both components flipped.
       #
-      # This is the ONLY convenience method because it's the only
-      # transformation that naturally operates on both components.
-      #
-      # @return [Identifier] new identifier with both components flipped
+      # @return [Identifier] A new Identifier with both SIN and PIN flipped
       #
       # @example
-      #   qpi = Sashite::Qpi.parse("C:K^")
-      #   qpi.flip  # => "c:k^"
+      #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("K^"))
+      #   qpi.flip.to_s  # => "c:k^"
       def flip
-        self.class.new(@sin.flip, @pin.flip)
+        self.class.new(sin.flip, pin.flip)
       end
 
-      # Custom equality comparison
+      # ========================================================================
+      # Equality
+      # ========================================================================
+
+      # Checks equality with another Identifier.
       #
-      # @param other [Object] object to compare with
-      # @return [Boolean] true if both SIN and PIN components are equal
+      # @param other [Object] The object to compare
+      # @return [Boolean] true if equal
       def ==(other)
-        return false unless other.is_a?(self.class)
+        return false unless self.class === other
 
-        @sin == other.sin && @pin == other.pin
+        sin == other.sin && pin == other.pin
       end
 
-      # Alias for == to ensure Set functionality works correctly
       alias eql? ==
 
-      # Custom hash implementation for use in collections
+      # Returns a hash code for the Identifier.
       #
-      # @return [Integer] hash value
+      # @return [Integer] Hash code
       def hash
-        [self.class, @sin, @pin].hash
+        [sin, pin].hash
+      end
+
+      # Returns an inspect string for the Identifier.
+      #
+      # @return [String] Inspect representation
+      def inspect
+        "#<#{self.class} #{self}>"
       end
 
       private
 
-      # Split QPI string into SIN and PIN components
-      #
-      # @param qpi_string [String] QPI string to split
-      # @return [Array<String>] array containing [sin_part, pin_part]
-      # @raise [ArgumentError] if string doesn't contain exactly one separator
-      def self.split_components(qpi_string)
-        parts = qpi_string.split(SEPARATOR, 2)
-        raise ::ArgumentError, format(ERROR_MISSING_SEPARATOR, qpi_string) unless parts.size == 2
+      # ========================================================================
+      # Private Validation
+      # ========================================================================
 
-        parts
+      def validate_sin!(sin)
+        return if sin.is_a?(Sashite::Sin::Identifier)
+
+        raise Errors::Argument, Errors::Argument::Messages::INVALID_SIN
       end
 
-      private_class_method :split_components
+      def validate_pin!(pin)
+        return if pin.is_a?(Sashite::Pin::Identifier)
 
-      # Validate that SIN and PIN components have consistent sides
-      #
-      # @param sin [Sin::Identifier] SIN component to validate
-      # @param pin [Pin::Identifier] PIN component to validate
-      # @raise [ArgumentError] if sides don't match
-      def validate_semantic_consistency(sin, pin)
-        return if sin.side == pin.side
-
-        raise ::ArgumentError, format(ERROR_SEMANTIC_MISMATCH, sin.side, pin.side)
+        raise Errors::Argument, Errors::Argument::Messages::INVALID_PIN
       end
     end
   end
