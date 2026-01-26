@@ -27,9 +27,9 @@ puts "Valid inputs - simple QPI:"
 
 run_test("parses uppercase QPI 'C:K'") do
   result = Sashite::Qpi::Parser.parse("C:K")
-  raise "wrong SIN style" unless result[:sin].style == :C
+  raise "wrong SIN abbr" unless result[:sin].abbr == :C
   raise "wrong SIN side" unless result[:sin].side == :first
-  raise "wrong PIN type" unless result[:pin].type == :K
+  raise "wrong PIN abbr" unless result[:pin].abbr == :K
   raise "wrong PIN side" unless result[:pin].side == :first
   raise "wrong PIN state" unless result[:pin].state == :normal
   raise "wrong PIN terminal" unless result[:pin].terminal? == false
@@ -37,9 +37,9 @@ end
 
 run_test("parses lowercase QPI 'c:k'") do
   result = Sashite::Qpi::Parser.parse("c:k")
-  raise "wrong SIN style" unless result[:sin].style == :C
+  raise "wrong SIN abbr" unless result[:sin].abbr == :C
   raise "wrong SIN side" unless result[:sin].side == :second
-  raise "wrong PIN type" unless result[:pin].type == :K
+  raise "wrong PIN abbr" unless result[:pin].abbr == :K
   raise "wrong PIN side" unless result[:pin].side == :second
 end
 
@@ -64,15 +64,15 @@ puts "Valid inputs - state modifiers:"
 
 run_test("parses enhanced QPI 'S:+R'") do
   result = Sashite::Qpi::Parser.parse("S:+R")
-  raise "wrong SIN style" unless result[:sin].style == :S
-  raise "wrong PIN type" unless result[:pin].type == :R
+  raise "wrong SIN abbr" unless result[:sin].abbr == :S
+  raise "wrong PIN abbr" unless result[:pin].abbr == :R
   raise "wrong PIN state" unless result[:pin].state == :enhanced
 end
 
 run_test("parses diminished QPI 'X:-p'") do
   result = Sashite::Qpi::Parser.parse("X:-p")
-  raise "wrong SIN style" unless result[:sin].style == :X
-  raise "wrong PIN type" unless result[:pin].type == :P
+  raise "wrong SIN abbr" unless result[:sin].abbr == :X
+  raise "wrong PIN abbr" unless result[:pin].abbr == :P
   raise "wrong PIN side" unless result[:pin].side == :second
   raise "wrong PIN state" unless result[:pin].state == :diminished
 end
@@ -86,7 +86,7 @@ puts "Valid inputs - terminal marker:"
 
 run_test("parses terminal QPI 'C:K^'") do
   result = Sashite::Qpi::Parser.parse("C:K^")
-  raise "wrong PIN type" unless result[:pin].type == :K
+  raise "wrong PIN abbr" unless result[:pin].abbr == :K
   raise "wrong PIN terminal" unless result[:pin].terminal? == true
 end
 
@@ -126,14 +126,14 @@ puts "Valid inputs - various styles:"
 run_test("parses all uppercase SIN letters") do
   ("A".."Z").each do |letter|
     result = Sashite::Qpi::Parser.parse("#{letter}:K")
-    raise "wrong style for #{letter}" unless result[:sin].style == letter.to_sym
+    raise "wrong abbr for #{letter}" unless result[:sin].abbr == letter.to_sym
   end
 end
 
 run_test("parses all lowercase SIN letters") do
   ("a".."z").each do |letter|
     result = Sashite::Qpi::Parser.parse("#{letter}:k")
-    raise "wrong style for #{letter}" unless result[:sin].style == letter.upcase.to_sym
+    raise "wrong abbr for #{letter}" unless result[:sin].abbr == letter.upcase.to_sym
     raise "wrong side for #{letter}" unless result[:sin].side == :second
   end
 end

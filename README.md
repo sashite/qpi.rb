@@ -51,8 +51,8 @@ qpi = Sashite::Qpi.parse("C:K^")
 qpi.to_s  # => "C:K^"
 
 # Access the five Piece Identity attributes through components
-qpi.sin.style      # => :C (Piece Style)
-qpi.pin.type       # => :K (Piece Name)
+qpi.sin.abbr       # => :C (Piece Style)
+qpi.pin.abbr       # => :K (Piece Name)
 qpi.pin.side       # => :first (Piece Side)
 qpi.pin.state      # => :normal (Piece State)
 qpi.pin.terminal?  # => true (Terminal Status)
@@ -100,8 +100,8 @@ Sashite::Qpi.valid?(":K")       # => false
 qpi = Sashite::Qpi.parse("S:+R^")
 
 # Get components
-qpi.sin  # => #<Sashite::Sin::Identifier style=:S side=:first>
-qpi.pin  # => #<Sashite::Pin::Identifier type=:R state=:enhanced terminal=true>
+qpi.sin  # => #<Sashite::Sin::Identifier S>
+qpi.pin  # => #<Sashite::Pin::Identifier +R^>
 
 # Serialize components
 qpi.sin.to_s  # => "S"
@@ -117,10 +117,10 @@ All attributes come directly from the components:
 qpi = Sashite::Qpi.parse("S:+R^")
 
 # From SIN component
-qpi.sin.style  # => :S (Piece Style)
+qpi.sin.abbr  # => :S (Piece Style)
 
 # From PIN component
-qpi.pin.type       # => :R (Piece Name)
+qpi.pin.abbr       # => :R (Piece Name)
 qpi.pin.side       # => :first (Piece Side)
 qpi.pin.state      # => :enhanced (Piece State)
 qpi.pin.terminal?  # => true (Terminal Status)
@@ -165,10 +165,10 @@ qpi.with_pin(new_pin).to_s  # => "C:+Q^"
 # Transform both
 qpi.with_sin(new_sin).with_pin(new_pin).to_s  # => "S:+Q^"
 
-# Flip both components (change player)
-qpi.flip.to_s  # => "c:k^"
+# Flip PIN side (SIN unchanged)
+qpi.flip.to_s  # => "C:k^"
 
-# Native/Derived transformations
+# Native/Derived transformations (modify PIN only)
 qpi = Sashite::Qpi.parse("C:r")
 qpi.native.to_s  # => "C:R" (PIN case aligned with SIN case)
 qpi.derive.to_s  # => "C:r" (already derived, unchanged)
@@ -183,16 +183,16 @@ qpi.derive.to_s  # => "C:r" (PIN case differs from SIN case)
 ```ruby
 qpi = Sashite::Qpi.parse("C:K^")
 
-# Transform SIN via component
-qpi.with_sin(qpi.sin.with_style(:S)).to_s  # => "S:K^"
-
 # Transform PIN via component
-qpi.with_pin(qpi.pin.with_type(:Q)).to_s          # => "C:Q^"
-qpi.with_pin(qpi.pin.with_state(:enhanced)).to_s  # => "C:+K^"
-qpi.with_pin(qpi.pin.with_terminal(false)).to_s   # => "C:K"
+qpi.with_pin(qpi.pin.with_abbr(:Q)).to_s         # => "C:Q^"
+qpi.with_pin(qpi.pin.with_state(:enhanced)).to_s # => "C:+K^"
+qpi.with_pin(qpi.pin.with_terminal(false)).to_s  # => "C:K"
+
+# Replace SIN with new instance
+qpi.with_sin(Sashite::Sin.parse("S")).to_s  # => "S:K^"
 
 # Chain transformations
-qpi.flip.with_sin(qpi.sin.with_style(:S)).to_s  # => "s:k^"
+qpi.flip.with_sin(Sashite::Sin.parse("c")).to_s  # => "c:k^"
 ```
 
 ### Component Queries
@@ -203,13 +203,13 @@ Since QPI is a composition, use the component APIs directly:
 qpi = Sashite::Qpi.parse("S:+P^")
 
 # SIN queries (style and side)
-qpi.sin.style          # => :S
+qpi.sin.abbr           # => :S
 qpi.sin.side           # => :first
 qpi.sin.first_player?  # => true
-qpi.sin.letter         # => "S"
+qpi.sin.to_s           # => "S"
 
-# PIN queries (type, state, terminal)
-qpi.pin.type       # => :P
+# PIN queries (abbr, state, terminal)
+qpi.pin.abbr       # => :P
 qpi.pin.state      # => :enhanced
 qpi.pin.terminal?  # => true
 qpi.pin.enhanced?  # => true
@@ -219,10 +219,10 @@ qpi.pin.suffix     # => "^"
 
 # Compare QPIs via components
 other = Sashite::Qpi.parse("C:+P^")
-qpi.sin.same_style?(other.sin)  # => false (S vs C)
-qpi.pin.same_type?(other.pin)   # => true (both P)
-qpi.sin.same_side?(other.sin)   # => true (both first)
-qpi.pin.same_state?(other.pin)  # => true (both enhanced)
+qpi.sin.same_abbr?(other.sin)  # => false (S vs C)
+qpi.pin.same_abbr?(other.pin)  # => true (both P)
+qpi.sin.same_side?(other.sin)  # => true (both first)
+qpi.pin.same_state?(other.pin) # => true (both enhanced)
 ```
 
 ## API Reference
@@ -296,10 +296,10 @@ def Sashite::Qpi.valid?(string)
 def with_sin(new_sin)  # => Identifier with different SIN
 def with_pin(new_pin)  # => Identifier with different PIN
 
-# Flip transformation (transforms both components)
-def flip  # => Identifier with both SIN and PIN flipped
+# Flip transformation (modifies PIN only)
+def flip  # => Identifier with PIN side flipped
 
-# Native/Derived transformations
+# Native/Derived transformations (modify PIN only)
 def native  # => Identifier with PIN case aligned to SIN case
 def derive  # => Identifier with PIN case opposite to SIN case
 ```
@@ -323,8 +323,8 @@ QPI encodes complete **Piece Identity** as defined in the [Glossary](https://sas
 
 | Piece Attribute     | QPI Access           | Encoding                                               |
 |---------------------|----------------------|--------------------------------------------------------|
-| **Piece Style**     | `qpi.sin.style`      | SIN letter (case-insensitive identity)                 |
-| **Piece Name**      | `qpi.pin.type`       | PIN letter (case-insensitive identity)                 |
+| **Piece Style**     | `qpi.sin.abbr`       | SIN letter (case-insensitive identity)                 |
+| **Piece Name**      | `qpi.pin.abbr`       | PIN letter (case-insensitive identity)                 |
 | **Piece Side**      | `qpi.pin.side`       | PIN letter case (uppercase = first, lowercase = second)|
 | **Piece State**     | `qpi.pin.state`      | PIN modifier (`+` = enhanced, `-` = diminished)        |
 | **Terminal Status** | `qpi.pin.terminal?`  | PIN marker (`^` = terminal)                            |
@@ -336,7 +336,7 @@ Additionally, QPI provides a **Native/Derived relationship** via `native?`, `der
 - **Pure composition**: QPI composes SIN and PIN without reimplementing features
 - **Minimal API**: Core methods (`sin`, `pin`, `native?`, `derived?`, `native`, `derive`, `to_s`) plus transformations
 - **Component transparency**: Access components directly, no wrapper methods
-- **QPI-specific conveniences**: `flip`, `native`, `derive` (operations that span both components)
+- **QPI-specific conveniences**: `flip`, `native`, `derive` (operations that modify PIN only, per spec)
 - **Immutable identifiers**: Frozen instances prevent mutation
 - **Ruby idioms**: `valid?` predicate, `to_s` conversion, `ArgumentError` for invalid input
 - **No duplication**: Delegates to `sashite-sin` and `sashite-pin`

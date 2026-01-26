@@ -379,42 +379,52 @@ end
 puts
 puts "flip transformation:"
 
-run_test("flip changes both components to opposite side") do
+run_test("flip changes PIN side only (SIN unchanged)") do
   sin = Sashite::Sin.parse("C")
   pin = Sashite::Pin.parse("K")
   qpi = Sashite::Qpi::Identifier.new(sin, pin)
   result = qpi.flip
-  raise "wrong string" unless result.to_s == "c:k"
-  raise "wrong SIN side" unless result.sin.side == :second
-  raise "wrong PIN side" unless result.pin.side == :second
+  raise "wrong string" unless result.to_s == "C:k"
+  raise "SIN should be unchanged" unless result.sin.side == :first
+  raise "PIN side should be flipped" unless result.pin.side == :second
 end
 
-run_test("flip from lowercase to uppercase") do
-  sin = Sashite::Sin.parse("c")
+run_test("flip from lowercase PIN to uppercase PIN") do
+  sin = Sashite::Sin.parse("C")
   pin = Sashite::Pin.parse("k")
   qpi = Sashite::Qpi::Identifier.new(sin, pin)
   result = qpi.flip
   raise "wrong string" unless result.to_s == "C:K"
-  raise "wrong SIN side" unless result.sin.side == :first
-  raise "wrong PIN side" unless result.pin.side == :first
+  raise "SIN should be unchanged" unless result.sin.side == :first
+  raise "PIN side should be flipped" unless result.pin.side == :first
 end
 
-run_test("flip preserves native relationship") do
+run_test("flip with lowercase SIN changes PIN side only") do
+  sin = Sashite::Sin.parse("c")
+  pin = Sashite::Pin.parse("k")
+  qpi = Sashite::Qpi::Identifier.new(sin, pin)
+  result = qpi.flip
+  raise "wrong string" unless result.to_s == "c:K"
+  raise "SIN should be unchanged" unless result.sin.side == :second
+  raise "PIN side should be flipped" unless result.pin.side == :first
+end
+
+run_test("flip changes native to derived") do
   sin = Sashite::Sin.parse("C")
   pin = Sashite::Pin.parse("K")
   qpi = Sashite::Qpi::Identifier.new(sin, pin)
   raise "should start native" unless qpi.native?
   result = qpi.flip
-  raise "should stay native" unless result.native?
+  raise "should become derived" unless result.derived?
 end
 
-run_test("flip preserves derived relationship") do
+run_test("flip changes derived to native") do
   sin = Sashite::Sin.parse("C")
   pin = Sashite::Pin.parse("k")
   qpi = Sashite::Qpi::Identifier.new(sin, pin)
   raise "should start derived" unless qpi.derived?
   result = qpi.flip
-  raise "should stay derived" unless result.derived?
+  raise "should become native" unless result.native?
 end
 
 run_test("flip preserves PIN state and terminal") do
@@ -422,7 +432,7 @@ run_test("flip preserves PIN state and terminal") do
   pin = Sashite::Pin.parse("+K^")
   qpi = Sashite::Qpi::Identifier.new(sin, pin)
   result = qpi.flip
-  raise "wrong string" unless result.to_s == "c:+k^"
+  raise "wrong string" unless result.to_s == "C:+k^"
   raise "wrong state" unless result.pin.state == :enhanced
   raise "wrong terminal" unless result.pin.terminal? == true
 end

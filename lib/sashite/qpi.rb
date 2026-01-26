@@ -39,8 +39,8 @@ module Sashite
   # == Examples
   #
   #   qpi = Sashite::Qpi.parse("C:K^")
-  #   qpi.sin.style      # => :C
-  #   qpi.pin.type       # => :K
+  #   qpi.sin.abbr       # => :C
+  #   qpi.pin.abbr       # => :K
   #   qpi.pin.side       # => :first
   #   qpi.pin.state      # => :normal
   #   qpi.pin.terminal?  # => true

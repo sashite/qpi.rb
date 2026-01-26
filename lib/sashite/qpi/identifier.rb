@@ -22,8 +22,8 @@ module Sashite
     #   qpi = Identifier.new(sin, pin)
     #
     # @example Accessing components
-    #   qpi.sin.style      # => :C
-    #   qpi.pin.type       # => :K
+    #   qpi.sin.abbr       # => :C
+    #   qpi.pin.abbr       # => :K
     #   qpi.pin.side       # => :first
     #   qpi.pin.state      # => :normal
     #   qpi.pin.terminal?  # => true
@@ -181,15 +181,22 @@ module Sashite
         self.class.new(sin, new_pin)
       end
 
-      # Returns a new Identifier with both components flipped.
+      # Returns a new Identifier with PIN side flipped.
       #
-      # @return [Identifier] A new Identifier with both SIN and PIN flipped
+      # The SIN component remains unchanged. This reflects the QPI specification
+      # constraint that SIN (Player Style + Player Side) is stable within a Match,
+      # while PIN side (Piece Side) may change via Mutation.
+      #
+      # @return [Identifier] A new Identifier with PIN side flipped
       #
       # @example
       #   qpi = Identifier.new(Sin.parse("C"), Pin.parse("K^"))
-      #   qpi.flip.to_s  # => "c:k^"
+      #   qpi.flip.to_s  # => "C:k^"
+      #
+      #   qpi = Identifier.new(Sin.parse("c"), Pin.parse("r"))
+      #   qpi.flip.to_s  # => "c:R"
       def flip
-        self.class.new(sin.flip, pin.flip)
+        self.class.new(sin, pin.flip)
       end
 
       # ========================================================================

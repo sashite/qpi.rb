@@ -1,9 +1,9 @@
 PATH
   remote: .
   specs:
-    sashite-qpi (2.1.0)
-      sashite-pin (~> 4.0.0)
-      sashite-sin (~> 3.0.0)
+    sashite-qpi (2.2.0)
+      sashite-pin (~> 4.1.0)
+      sashite-sin (~> 3.1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -32,8 +32,8 @@ GEM
       tsort
     reline (0.6.3)
       io-console (~> 0.5)
-    sashite-pin (4.0.0)
-    sashite-sin (3.0.0)
+    sashite-pin (4.1.0)
+    sashite-sin (3.1.0)
     simplecov (0.22.0)
       docile (~> 1.1)
       simplecov-html (~> 0.11)
