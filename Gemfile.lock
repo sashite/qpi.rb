@@ -42,7 +42,7 @@ GEM
     simplecov_json_formatter (0.1.4)
     stringio (3.2.0)
     tsort (0.2.0)
-    yard (0.9.38)
+    yard (0.9.44)
 
 PLATFORMS
   arm64-darwin-24
